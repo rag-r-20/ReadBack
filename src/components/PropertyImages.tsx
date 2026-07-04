@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { StoredPhoto } from "../lib/db";
 import { addPhoto, getPhoto } from "../lib/db";
 import { prepareImage } from "../utils/image";
+import { useToast } from "./ui/Toast";
 
 interface Props {
   jobId: string;
@@ -11,6 +12,7 @@ interface Props {
 
 /** Property-level image gallery — images can exist without a circuit render. */
 export function PropertyImages({ jobId, photos, onChanged }: Props) {
+  const toast = useToast();
   const [urls, setUrls] = useState<Map<string, string>>(new Map());
   const [uploading, setUploading] = useState(false);
 
@@ -43,6 +45,10 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
       const prepared = await prepareImage(file);
       await addPhoto(prepared.blob, { jobId });
       onChanged();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't upload that image.",
+      );
     } finally {
       setUploading(false);
     }

@@ -6,6 +6,8 @@ interface Props {
   onRecorded: (blob: Blob) => void;
   /** Parent is processing the last recording (transcribe/clean) — lock the button. */
   busy?: boolean;
+  /** Lock mic while another capture mode (e.g. hands-free) owns the stream. */
+  disabled?: boolean;
   /** Status line shown under the button while busy (e.g. "Transcribing…"). */
   busyLabel?: string;
   idleLabel?: string;
@@ -15,6 +17,7 @@ interface Props {
 export function VoiceRecorder({
   onRecorded,
   busy = false,
+  disabled = false,
   busyLabel,
   idleLabel = "Hold to note — tap to record",
 }: Props) {
@@ -43,6 +46,7 @@ export function VoiceRecorder({
   }, []);
 
   async function start() {
+    if (disabled) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -82,7 +86,8 @@ export function VoiceRecorder({
       ) : (
         <button
           onClick={recording ? stop : start}
-          className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-colors ${
+          disabled={disabled}
+          className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
             recording
               ? "bg-red-600 hover:bg-red-700"
               : "bg-blue-700 hover:bg-blue-800"

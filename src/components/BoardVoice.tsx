@@ -6,7 +6,8 @@ import type {
   Panel,
   PanelComponent,
 } from "../lib/types";
-import { addNote, replacePanelComponentsRaw } from "../lib/db";
+import { applyBoardVoiceChanges } from "../lib/db";
+import { prepareBoardVoiceComponents } from "../lib/boardVoiceApply";
 import { transcribeBlob, speak } from "../lib/gradium";
 import { parseBoardVoice } from "../lib/llm";
 import { stripWakePhrases } from "../lib/speechRecognition";
@@ -33,10 +34,6 @@ interface Props {
   onChanged: () => void;
 }
 
-function clampGridPos(n: number, max: number): number {
-  return Math.max(1, Math.min(Math.floor(n), max));
-}
-
 function playSpeakConfirmation(text: string) {
   void speak(text).then((r) => {
     if (!r.ok) return;
@@ -61,7 +58,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
     return id ? components.find((c) => c.id === id) : undefined;
   }
 
-  async function handleRecorded(blob: Blob) {
+  async function handleRecorded(blob: Blob, fromHandsFree = false) {
     setPipeline("transcribing");
     const stt = await transcribeBlob(blob);
     if (!stt.ok) {
@@ -70,7 +67,9 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
       return;
     }
 
-    const transcript = stripWakePhrases(stt.transcript) || stt.transcript;
+    const transcript = fromHandsFree
+      ? stripWakePhrases(stt.transcript) || stt.transcript
+      : stt.transcript;
     setPipeline("parsing");
     const context = {
       layout: { rows: panel.rows ?? 1, cols: panel.cols ?? null },
@@ -106,7 +105,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
   }
 
   const handsFree = useHandsFreeVoice({
-    onRecorded: handleRecorded,
+    onRecorded: (blob) => void handleRecorded(blob, true),
     disabled: pipeline !== "idle",
     onError: (msg) => toast.error(msg),
   });
@@ -123,67 +122,40 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
       if (saved.layout?.rows != null) layoutRows = saved.layout.rows;
       if (saved.layout?.cols != null) layoutCols = saved.layout.cols;
 
-      const next = components.map((c) => ({ ...c }));
-      const orderOverrides = new Map<string, number>();
-
-      for (const item of saved.items) {
-        if (!item.componentId) continue;
-        const idx = next.findIndex((c) => c.id === item.componentId);
-        if (idx < 0) continue;
-        const tile = next[idx];
-        if (item.purposeLabel) tile.purposeLabel = item.purposeLabel;
-        if (item.rating) tile.rating = item.rating;
-        if (item.row != null) tile.row = clampGridPos(item.row, layoutRows);
-        if (item.col != null) tile.col = clampGridPos(item.col, layoutCols);
-        if (item.order != null) orderOverrides.set(tile.id, item.order);
-      }
-
-      const hasExplicitPositions = saved.items.some(
-        (i) => i.componentId && (i.row != null || i.col != null),
+      const { components: next, preservePositions } = prepareBoardVoiceComponents(
+        components,
+        saved.items,
+        layoutRows,
+        layoutCols,
       );
 
-      if (orderOverrides.size > 0) {
-        next.sort((a, b) => {
-          const ao = orderOverrides.get(a.id) ?? a.order;
-          const bo = orderOverrides.get(b.id) ?? b.order;
-          return ao - bo;
+      const noteDrafts = saved.items
+        .filter((item) => item.note_text)
+        .map((item) => {
+          const tile = tileFor(item.componentId);
+          const cleaned: CleanedNote = {
+            purpose: item.purposeLabel ?? tile?.purposeLabel ?? "General note",
+            rating: item.rating ?? tile?.rating ?? null,
+            area_served: null,
+            feeds: [],
+            cautions: null,
+            note_text: item.note_text!,
+          };
+          return {
+            componentId: tile?.id,
+            transcript: saved.transcript,
+            cleaned,
+          };
         });
-      } else if (hasExplicitPositions) {
-        next.sort((a, b) => {
-          if ((a.row ?? 0) !== (b.row ?? 0)) return (a.row ?? 0) - (b.row ?? 0);
-          return (a.col ?? 0) - (b.col ?? 0);
-        });
-      }
 
-      // Persist the new sequence before replacePanelComponentsRaw re-sorts.
-      next.forEach((tile, i) => {
-        tile.order = i + 1;
-      });
-
-      await replacePanelComponentsRaw(
+      await applyBoardVoiceChanges(
+        jobId,
         panel.id,
         next,
         { rows: layoutRows, cols: layoutCols },
-        { preservePositions: hasExplicitPositions },
+        { preservePositions },
+        noteDrafts,
       );
-
-      let notes = 0;
-      for (const item of saved.items) {
-        if (!item.note_text) continue;
-        const tile = tileFor(item.componentId);
-        const cleaned: CleanedNote = {
-          purpose: item.purposeLabel ?? tile?.purposeLabel ?? "General note",
-          rating: item.rating ?? tile?.rating ?? null,
-          area_served: null,
-          feeds: [],
-          cautions: null,
-          note_text: item.note_text,
-        };
-        await addNote(jobId, saved.transcript, cleaned, {
-          componentId: tile?.id,
-        });
-        notes += 1;
-      }
 
       setReview(null);
 
@@ -197,6 +169,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
       const moves = saved.items.filter(
         (i) => i.componentId && (i.order != null || i.row != null || i.col != null),
       ).length;
+      const notes = noteDrafts.length;
       if (labelUpdates) {
         parts.push(`${labelUpdates} tile${labelUpdates === 1 ? "" : "s"} relabelled`);
       }
@@ -218,8 +191,9 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
     <>
       <div className="mt-3 rounded-2xl bg-zinc-50 p-4">
         <VoiceRecorder
-          onRecorded={handleRecorded}
+          onRecorded={(blob) => void handleRecorded(blob, false)}
           busy={pipeline !== "idle"}
+          disabled={handsFree.armed}
           busyLabel={
             pipeline === "transcribing"
               ? "Transcribing…"
@@ -227,7 +201,11 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
                 ? "Making sense of it…"
                 : "Applying…"
           }
-          idleLabel="Describe the board — labels, layout, or moves"
+          idleLabel={
+            handsFree.armed
+              ? "Hands-free on — use “note” / “end note”, or turn it off"
+              : "Describe the board — labels, layout, or moves"
+          }
         />
         {handsFree.supported && (
           <div className="mt-3 flex flex-col items-center gap-1 border-t border-zinc-200 pt-3">

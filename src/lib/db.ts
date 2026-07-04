@@ -273,6 +273,56 @@ export async function replacePanelComponentsRaw(
   await db.panels.update(panelId, { rows, cols, components: final });
 }
 
+export interface BoardVoiceNoteDraft {
+  componentId?: string;
+  transcript: string;
+  cleaned: CleanedNote;
+}
+
+/** Atomically persist board-voice layout edits and any new notes. */
+export async function applyBoardVoiceChanges(
+  jobId: string,
+  panelId: string,
+  components: PanelComponent[],
+  layout: { rows: number; cols: number },
+  opts: { preservePositions?: boolean },
+  notes: BoardVoiceNoteDraft[],
+): Promise<void> {
+  await db.transaction("rw", [db.panels, db.notes], async () => {
+    const panel = await db.panels.get(panelId);
+    if (!panel) throw new Error("Panel not found");
+
+    const rows = layout.rows;
+    const cols = layout.cols;
+    let final = opts.preservePositions
+      ? components.map((c, i) => ({ ...c, order: i + 1 }))
+      : syncComponentGrid(components, rows, cols);
+
+    const newNotes: Note[] = [];
+    for (const draft of notes) {
+      const note: Note = {
+        id: newId(),
+        jobId,
+        componentId: draft.componentId,
+        transcript: draft.transcript,
+        cleaned: draft.cleaned,
+        createdAt: Date.now(),
+      };
+      newNotes.push(note);
+      if (draft.componentId) {
+        final = final.map((c) =>
+          c.id === draft.componentId
+            ? { ...c, noteIds: [...c.noteIds, note.id] }
+            : c,
+        );
+      }
+    }
+
+    await db.panels.update(panelId, { rows, cols, components: final });
+    if (newNotes.length) await db.notes.bulkAdd(newNotes);
+  });
+}
+
 /**
  * Convert a vision-parse result into storable PanelComponent tiles.
  * printed_label seeds purposeLabel; the user refines it in the tile editor.

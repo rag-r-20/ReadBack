@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { descriptionParse } from "../lib/llm";
 import { addPanel, getJob, visionParseToComponents } from "../lib/db";
-import { inferGridFromVision } from "../lib/diagram";
+import { inferGridFromVision, syncComponentGrid } from "../lib/diagram";
 import type { Job, PanelComponent, VisionParse } from "../lib/types";
 import { TopBar } from "./TopBar";
 import { Button } from "./ui/Button";
@@ -11,6 +11,12 @@ import { useToast } from "./ui/Toast";
 import { ManualPlacement } from "./ManualPlacement";
 
 type Stage = "form" | "reading" | "manual";
+
+function gridForCount(count: number): { rows: number; cols: number } {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+  const rows = Math.max(1, Math.ceil(count / cols));
+  return { rows, cols };
+}
 
 export function DescribeCircuit() {
   const { jobId = "" } = useParams();
@@ -35,16 +41,42 @@ export function DescribeCircuit() {
   }, [jobId, navigate, toast]);
 
   async function finalize(parse: VisionParse) {
-    const { rows, cols } = inferGridFromVision(parse);
-    await addPanel(jobId, visionParseToComponents(parse), {
-      label: label.trim() || undefined,
-      sourceDescription: description.trim(),
-      sourceType: "description",
-      rows,
-      cols,
-    });
-    toast.success("Circuit render created.");
-    navigate(`/job/${jobId}`, { replace: true });
+    try {
+      const { rows, cols } = inferGridFromVision(parse);
+      await addPanel(jobId, visionParseToComponents(parse), {
+        label: label.trim() || undefined,
+        sourceDescription: description.trim(),
+        sourceType: "description",
+        rows,
+        cols,
+      });
+      toast.success("Circuit render created.");
+      navigate(`/job/${jobId}`, { replace: true });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't save that board.",
+      );
+      setStage("form");
+    }
+  }
+
+  async function finalizeManual(components: PanelComponent[]) {
+    try {
+      const { rows, cols } = gridForCount(components.length);
+      await addPanel(jobId, syncComponentGrid(components, rows, cols), {
+        label: label.trim() || undefined,
+        sourceDescription: description.trim(),
+        sourceType: "description",
+        rows,
+        cols,
+      });
+      toast.success("Circuit render created.");
+      navigate(`/job/${jobId}`, { replace: true });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't save that board.",
+      );
+    }
   }
 
   async function runDescriptionPipeline() {
@@ -55,13 +87,20 @@ export function DescribeCircuit() {
     }
     setStage("reading");
     setParseError(null);
-    const res = await descriptionParse(text);
-    if (!res.ok) {
-      setParseError(res.error);
-      setStage("manual");
-      return;
+    try {
+      const res = await descriptionParse(text);
+      if (!res.ok) {
+        setParseError(res.error);
+        setStage("manual");
+        return;
+      }
+      await finalize(res.value);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't build that board.",
+      );
+      setStage("form");
     }
-    await finalize(res.value);
   }
 
   if (stage === "manual") {
@@ -70,14 +109,8 @@ export function DescribeCircuit() {
         reason={parseError}
         cancelLabel="Go back"
         onCancel={() => setStage("form")}
-        onConfirm={async (components: PanelComponent[]) => {
-          await addPanel(jobId, components, {
-            label: label.trim() || undefined,
-            sourceDescription: description.trim(),
-            sourceType: "description",
-          });
-          toast.success("Circuit render created.");
-          navigate(`/job/${jobId}`, { replace: true });
+        onConfirm={async (components) => {
+          await finalizeManual(components);
         }}
       />
     );

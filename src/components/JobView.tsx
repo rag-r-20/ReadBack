@@ -72,6 +72,11 @@ export function JobView() {
   }, [refresh]);
 
   const components = panel?.components ?? [];
+  const boardTitle = panel?.label ?? job?.title;
+  const boardCaption =
+    panel?.sourceType === "description" && panel.sourceDescription
+      ? panel.sourceDescription
+      : undefined;
   const selectedTile = useMemo(
     () => components.find((c) => c.id === selectedId) ?? null,
     [components, selectedId],
@@ -198,12 +203,15 @@ export function JobView() {
           (panel ? (
             <>
               <ErrorBoundary>
+                {boardCaption && (
+                  <p className="mb-3 text-sm text-zinc-500">{boardCaption}</p>
+                )}
                 <BeforeAfter
                   photoId={panel.sourcePhotoId}
                   components={components}
                   rows={panel.rows}
                   cols={panel.cols}
-                  title={job?.title}
+                  title={boardTitle}
                   selectedId={selectedId}
                   highlightIds={highlightIds ?? undefined}
                   onSelectTile={openTile}
