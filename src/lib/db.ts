@@ -2,6 +2,10 @@
 // rows carry jobId so a full job assembles with three indexed queries.
 
 import Dexie, { type Table } from 'dexie';
+import {
+  inferGridFromVision,
+  syncComponentGrid,
+} from './diagram';
 import type {
   Job,
   Material,
@@ -45,23 +49,45 @@ class ReadBackDB extends Dexie {
 
 export const db = new ReadBackDB();
 
+let dbOpen: Promise<void> | null = null;
+
+/** Open IndexedDB once; surfaces a clear error on mobile/private browsing. */
+export async function ensureDb(): Promise<void> {
+  if (!dbOpen) {
+    dbOpen = db
+      .open()
+      .then(() => undefined)
+      .catch((err) => {
+        dbOpen = null;
+        throw err;
+      });
+  }
+  return dbOpen;
+}
+
 export function newId(): string {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // ---------- Jobs ----------
 
 export async function createJob(title: string, address?: string): Promise<Job> {
+  await ensureDb();
   const job: Job = { id: newId(), title, address, createdAt: Date.now() };
   await db.jobs.add(job);
   return job;
 }
 
 export async function getJob(jobId: string): Promise<Job | undefined> {
+  await ensureDb();
   return db.jobs.get(jobId);
 }
 
 export async function listJobs(): Promise<Job[]> {
+  await ensureDb();
   return db.jobs.orderBy('createdAt').reverse().toArray();
 }
 
@@ -101,12 +127,16 @@ export async function addPanel(
   jobId: string,
   components: PanelComponent[],
   sourcePhotoId?: string,
+  rows?: number,
+  cols?: number,
 ): Promise<Panel> {
   const panel: Panel = {
     id: newId(),
     jobId,
     sourcePhotoId,
     components,
+    rows,
+    cols,
     createdAt: Date.now(),
   };
   await db.panels.add(panel);
@@ -133,14 +163,58 @@ export async function updateComponent(
 
 /**
  * Replace a panel's whole component list (used for add/remove/reorder in the
- * tile editor). Order fields are renumbered 1..n by array position.
+ * tile editor). Order and row/col fields are re-synced to the panel grid.
  */
 export async function replacePanelComponents(
   panelId: string,
   components: PanelComponent[],
 ): Promise<void> {
-  const renumbered = components.map((c, i) => ({ ...c, order: i + 1 }));
-  await db.panels.update(panelId, { components: renumbered });
+  const panel = await db.panels.get(panelId);
+  if (!panel) return;
+  const rows = panel.rows ?? 1;
+  const cols = panel.cols ?? Math.max(1, Math.ceil(components.length / rows));
+  const synced = syncComponentGrid(components, rows, cols);
+  await db.panels.update(panelId, { components: synced });
+}
+
+/** Update the board grid shape (rows/cols) and re-sync tile positions. */
+export async function updatePanelLayout(
+  panelId: string,
+  patch: { rows?: number; cols?: number },
+  components?: PanelComponent[],
+): Promise<void> {
+  const panel = await db.panels.get(panelId);
+  if (!panel) return;
+  const rows = patch.rows ?? panel.rows ?? 1;
+  const cols =
+    patch.cols ??
+    panel.cols ??
+    Math.max(1, Math.ceil((components ?? panel.components).length / rows));
+  const synced = syncComponentGrid(components ?? panel.components, rows, cols);
+  await db.panels.update(panelId, { rows, cols, components: synced });
+}
+
+/**
+ * Apply board-voice or manual edits, optionally preserving explicit row/col
+ * positions instead of re-flowing to a uniform grid.
+ */
+export async function replacePanelComponentsRaw(
+  panelId: string,
+  components: PanelComponent[],
+  layout?: { rows?: number; cols?: number },
+  opts?: { preservePositions?: boolean },
+): Promise<void> {
+  const panel = await db.panels.get(panelId);
+  if (!panel) return;
+  const rows = layout?.rows ?? panel.rows ?? 1;
+  const cols =
+    layout?.cols ??
+    panel.cols ??
+    Math.max(1, Math.ceil(components.length / rows));
+  const final = opts?.preservePositions
+    ? components.map((c, i) => ({ ...c, order: i + 1 }))
+    : syncComponentGrid(components, rows, cols);
+  await db.panels.update(panelId, { rows, cols, components: final });
 }
 
 /**
@@ -148,13 +222,24 @@ export async function replacePanelComponents(
  * printed_label seeds purposeLabel; the user refines it in the tile editor.
  */
 export function visionParseToComponents(parse: VisionParse): PanelComponent[] {
-  return parse.components.map((v: VisionComponent) => ({
+  const { cols } = inferGridFromVision(parse);
+  const sorted = [...parse.components].sort((a, b) => {
+    const ar = a.row ?? Math.floor((a.order - 1) / cols) + 1;
+    const br = b.row ?? Math.floor((b.order - 1) / cols) + 1;
+    if (ar !== br) return ar - br;
+    const ac = a.col ?? ((a.order - 1) % cols) + 1;
+    const bc = b.col ?? ((b.order - 1) % cols) + 1;
+    return ac - bc;
+  });
+  return sorted.map((v: VisionComponent, i) => ({
     id: v.id || newId(),
-    order: v.order,
+    order: i + 1,
+    row: v.row ?? Math.floor(i / cols) + 1,
+    col: v.col ?? (i % cols) + 1,
     type: v.type,
     rating: v.rating,
     purposeLabel: v.printed_label,
-    noteIds: [],
+    noteIds: [] as string[],
     confidence: v.confidence,
   }));
 }

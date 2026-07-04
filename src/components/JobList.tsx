@@ -14,6 +14,7 @@ export function JobList() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
   const [address, setAddress] = useState("");
 
@@ -26,17 +27,30 @@ export function JobList() {
     void refresh();
   }, [refresh]);
 
-  async function handleCreate() {
+  async function handleCreate(e?: { preventDefault?: () => void }) {
+    e?.preventDefault?.();
     const t = title.trim();
     if (!t) {
       toast.error("Give the job a name or address.");
       return;
     }
-    const job = await createJob(t, address.trim() || undefined);
-    setCreating(false);
-    setTitle("");
-    setAddress("");
-    navigate(`/job/${job.id}/capture`);
+    if (saving) return;
+    setSaving(true);
+    try {
+      const job = await createJob(t, address.trim() || undefined);
+      setCreating(false);
+      setTitle("");
+      setAddress("");
+      navigate(`/job/${job.id}/capture`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Could not save the job — try turning off private browsing.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete(job: Job) {
@@ -106,19 +120,34 @@ export function JobList() {
 
       <Sheet
         open={creating}
-        onClose={() => setCreating(false)}
+        onClose={() => !saving && setCreating(false)}
         title="New job"
+        footer={
+          <Button
+            type="submit"
+            form="new-job-form"
+            size="lg"
+            block
+            disabled={saving}
+          >
+            {saving ? "Creating…" : "Create & capture board"}
+          </Button>
+        }
       >
-        <div className="flex flex-col gap-4">
+        <form
+          id="new-job-form"
+          className="flex flex-col gap-4"
+          onSubmit={(e) => void handleCreate(e)}
+        >
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-zinc-700">
               Job name or address
             </span>
             <input
               autoFocus
+              enterKeyHint="go"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="e.g. 14 Elm Road"
               className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
@@ -128,16 +157,14 @@ export function JobList() {
               Address (optional)
             </span>
             <input
+              enterKeyHint="go"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Full address"
               className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
-          <Button size="lg" block onClick={handleCreate}>
-            Create &amp; capture board
-          </Button>
-        </div>
+        </form>
       </Sheet>
     </>
   );

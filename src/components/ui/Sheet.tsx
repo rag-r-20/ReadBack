@@ -6,6 +6,8 @@ interface Props {
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
+  /** Pinned action area — stays visible above the mobile keyboard. */
+  footer?: ReactNode;
   /** Max width on desktop; the sheet centers as a dialog there. */
   className?: string;
 }
@@ -14,7 +16,7 @@ interface Props {
  * Bottom sheet on mobile, centered dialog on desktop. Used for the tile editor,
  * capture prompts, and any modal flow.
  */
-export function Sheet({ open, onClose, title, children, className = "" }: Props) {
+export function Sheet({ open, onClose, title, children, footer, className = "" }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -40,12 +42,14 @@ export function Sheet({ open, onClose, title, children, className = "" }: Props)
       <div
         role="dialog"
         aria-modal="true"
-        className={`safe-bottom relative w-full rounded-t-3xl bg-white shadow-2xl sm:w-auto sm:min-w-[420px] sm:max-w-lg sm:rounded-3xl ${className}`}
+        onClick={(e) => e.stopPropagation()}
+        className={`safe-bottom relative flex max-h-[min(92dvh,100%)] w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-h-[85vh] sm:w-auto sm:min-w-[420px] sm:max-w-lg sm:rounded-3xl ${className}`}
       >
         {title !== undefined && (
-          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
             <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
             <button
+              type="button"
               onClick={onClose}
               className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
               aria-label="Close"
@@ -61,7 +65,14 @@ export function Sheet({ open, onClose, title, children, className = "" }: Props)
             </button>
           </div>
         )}
-        <div className="max-h-[75vh] overflow-y-auto px-5 py-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+          {children}
+        </div>
+        {footer && (
+          <div className="shrink-0 border-t border-zinc-100 bg-white px-5 py-4">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -36,6 +36,7 @@ export function Button({
 }: Props) {
   return (
     <button
+      type="button"
       className={`inline-flex items-center justify-center font-medium transition-colors disabled:cursor-not-allowed ${VARIANTS[variant]} ${SIZES[size]} ${block ? "w-full" : ""} ${className}`}
       {...rest}
     >
