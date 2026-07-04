@@ -14,11 +14,19 @@ import type {
   VisionComponent,
 } from './types';
 
+/** Original capture stored so the before/after view can show the source photo. */
+export interface StoredPhoto {
+  id: string;
+  blob: Blob;
+  createdAt: number;
+}
+
 class ReadBackDB extends Dexie {
   jobs!: Table<Job, string>;
   panels!: Table<Panel, string>;
   notes!: Table<Note, string>;
   materials!: Table<Material, string>;
+  photos!: Table<StoredPhoto, string>;
 
   constructor() {
     super('readback');
@@ -27,6 +35,10 @@ class ReadBackDB extends Dexie {
       panels: 'id, jobId, createdAt',
       notes: 'id, jobId, componentId, createdAt',
       materials: 'id, jobId, createdAt',
+    });
+    // v2: add a photos table for the captured source images (UI/before-after).
+    this.version(2).stores({
+      photos: 'id, createdAt',
     });
   }
 }
@@ -53,14 +65,34 @@ export async function listJobs(): Promise<Job[]> {
   return db.jobs.orderBy('createdAt').reverse().toArray();
 }
 
-/** Deletes the job and everything hanging off it. */
+/** Deletes the job and everything hanging off it (including captured photos). */
 export async function deleteJob(jobId: string): Promise<void> {
-  await db.transaction('rw', [db.jobs, db.panels, db.notes, db.materials], async () => {
+  await db.transaction('rw', [db.jobs, db.panels, db.notes, db.materials, db.photos], async () => {
+    const panels = await db.panels.where('jobId').equals(jobId).toArray();
+    const photoIds = panels
+      .map((p) => p.sourcePhotoId)
+      .filter((id): id is string => Boolean(id));
+    if (photoIds.length) await db.photos.bulkDelete(photoIds);
     await db.panels.where('jobId').equals(jobId).delete();
     await db.notes.where('jobId').equals(jobId).delete();
     await db.materials.where('jobId').equals(jobId).delete();
     await db.jobs.delete(jobId);
   });
+}
+
+// ---------- Photos ----------
+
+/** Store a captured image blob; returns the id to pass as sourcePhotoId. */
+export async function addPhoto(blob: Blob): Promise<string> {
+  const id = newId();
+  await db.photos.add({ id, blob, createdAt: Date.now() });
+  return id;
+}
+
+/** Fetch a stored photo blob (undefined if missing). */
+export async function getPhoto(photoId: string): Promise<Blob | undefined> {
+  const row = await db.photos.get(photoId);
+  return row?.blob;
 }
 
 // ---------- Panels & components ----------
@@ -97,6 +129,18 @@ export async function updateComponent(
     c.id === componentId ? { ...c, ...patch } : c,
   );
   await db.panels.update(panelId, { components });
+}
+
+/**
+ * Replace a panel's whole component list (used for add/remove/reorder in the
+ * tile editor). Order fields are renumbered 1..n by array position.
+ */
+export async function replacePanelComponents(
+  panelId: string,
+  components: PanelComponent[],
+): Promise<void> {
+  const renumbered = components.map((c, i) => ({ ...c, order: i + 1 }));
+  await db.panels.update(panelId, { components: renumbered });
 }
 
 /**
