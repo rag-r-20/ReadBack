@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { visionParse } from "../lib/llm";
 import { addPanel, addPhoto, getJob, visionParseToComponents } from "../lib/db";
+import { inferGridFromVision } from "../lib/diagram";
 import type { Job, VisionParse } from "../lib/types";
 import { prepareImage } from "../utils/image";
 import type { PreparedImage } from "../utils/image";
@@ -21,7 +22,7 @@ export function CameraCapture() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [job, setJob] = useState<Job | null>(null);
   const [stage, setStage] = useState<Stage>("camera");
@@ -31,14 +32,26 @@ export function CameraCapture() {
   const [parseError, setParseError] = useState<string | null>(null);
 
   useEffect(() => {
-    void getJob(jobId).then((j) => {
-      if (!j) {
+    let cancelled = false;
+    async function loadJob() {
+      // Brief retry — mobile IndexedDB can lag right after createJob + navigate.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const j = await getJob(jobId);
+        if (j) {
+          if (!cancelled) setJob(j);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 80 * (attempt + 1)));
+      }
+      if (!cancelled) {
         toast.error("That job no longer exists.");
         navigate("/", { replace: true });
-      } else {
-        setJob(j);
       }
-    });
+    }
+    if (jobId) void loadJob();
+    return () => {
+      cancelled = true;
+    };
   }, [jobId, navigate, toast]);
 
   const stopCamera = useCallback(() => {
@@ -127,8 +140,17 @@ export function CameraCapture() {
   }
 
   async function finalize(parse: VisionParse) {
-    const photoId = await addPhoto(prepared!.blob);
-    await addPanel(jobId, visionParseToComponents(parse), photoId);
+    try {
+      const grid = inferGridFromVision(parse);
+      const components = visionParseToComponents(parse);
+      const photoId = await addPhoto(prepared!.blob);
+      await addPanel(jobId, components, photoId, grid.rows, grid.cols);
+    } catch (e) {
+      // Storage failed — never leave the user stuck on the reading screen.
+      setParseError(e instanceof Error ? e.message : "Could not save the board.");
+      setStage("manual");
+      return;
+    }
     toast.success("Board captured.");
     navigate(`/job/${jobId}`, { replace: true });
   }
@@ -199,8 +221,8 @@ export function CameraCapture() {
                 <div className="px-8 py-16 text-center text-sm text-zinc-300">
                   <p className="mb-2 font-medium">Camera not available</p>
                   <p className="text-zinc-400">
-                    Use “Upload photo” below to pick a picture of the board
-                    instead.
+                    Use “Choose from photos” below to pick an existing picture
+                    of the board instead.
                   </p>
                 </div>
               )}
@@ -215,15 +237,14 @@ export function CameraCapture() {
                 variant="secondary"
                 size="lg"
                 block
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => galleryInputRef.current?.click()}
               >
-                Upload photo
+                Choose from photos
               </Button>
               <input
-                ref={fileInputRef}
+                ref={galleryInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={handleFile}
               />

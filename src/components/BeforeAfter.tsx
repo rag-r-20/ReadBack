@@ -6,11 +6,13 @@ import { PanelDiagram } from "./PanelDiagram";
 interface Props {
   photoId?: string;
   components: PanelComponent[];
-  rows?: number;
+  rows?: number | string | null;
+  cols?: number | string | null;
   title?: string;
   selectedId?: string | null;
   highlightIds?: Set<string>;
   onSelectTile?: (id: string) => void;
+  onReorder?: (orderedIds: string[]) => void;
 }
 
 /** The demo money shot: chaotic photo on the left, tidy diagram on the right. */
@@ -18,10 +20,12 @@ export function BeforeAfter({
   photoId,
   components,
   rows,
+  cols,
   title,
   selectedId,
   highlightIds,
   onSelectTile,
+  onReorder,
 }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
@@ -66,10 +70,12 @@ export function BeforeAfter({
           <PanelDiagram
             components={components}
             rows={rows}
+            cols={cols}
             title={title}
             selectedId={selectedId}
             highlightIds={highlightIds}
             onSelectTile={onSelectTile}
+            onReorder={onReorder}
           />
         </div>
       </figure>

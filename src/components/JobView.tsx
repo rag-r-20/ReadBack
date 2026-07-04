@@ -14,6 +14,8 @@ import { TopBar } from "./TopBar";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { BeforeAfter } from "./BeforeAfter";
+import { BoardVoice } from "./BoardVoice";
+import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { TileEditor } from "./TileEditor";
 import { NotesList } from "./NotesList";
 import { MaterialsList } from "./MaterialsList";
@@ -107,6 +109,17 @@ export function JobView() {
     await refresh();
   }
 
+  async function reorderTiles(orderedIds: string[]) {
+    if (!panel) return;
+    const byId = new Map(components.map((c) => [c.id, c]));
+    const next = orderedIds
+      .map((id) => byId.get(id))
+      .filter((c): c is PanelComponent => Boolean(c));
+    if (next.length !== components.length) return;
+    await replacePanelComponents(panel.id, next);
+    await refresh();
+  }
+
   async function addAfter() {
     if (!panel || selectedIndex < 0) return;
     const fresh: PanelComponent = {
@@ -175,15 +188,29 @@ export function JobView() {
       <main className="flex-1 px-4 py-4">
         {tab === "board" &&
           (panel ? (
-            <BeforeAfter
-              photoId={panel.sourcePhotoId}
-              components={components}
-              rows={1}
-              title={job?.title}
-              selectedId={selectedId}
-              highlightIds={highlightIds ?? undefined}
-              onSelectTile={openTile}
-            />
+            <>
+              <ErrorBoundary>
+                <BeforeAfter
+                  photoId={panel.sourcePhotoId}
+                  components={components}
+                  rows={panel.rows}
+                  cols={panel.cols}
+                  title={job?.title}
+                  selectedId={selectedId}
+                  highlightIds={highlightIds ?? undefined}
+                  onSelectTile={openTile}
+                  onReorder={(ids) => void reorderTiles(ids)}
+                />
+              </ErrorBoundary>
+              <ErrorBoundary>
+                <BoardVoice
+                  jobId={jobId}
+                  panel={panel}
+                  components={components}
+                  onChanged={() => void refresh()}
+                />
+              </ErrorBoundary>
+            </>
           ) : (
             <NoBoard onCapture={() => navigate(`/job/${jobId}/capture`)} />
           ))}

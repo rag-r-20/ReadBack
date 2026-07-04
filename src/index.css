@@ -22,6 +22,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  touch-action: manipulation;
 }
 
 /* Keep the app usable inside iOS safe areas. */

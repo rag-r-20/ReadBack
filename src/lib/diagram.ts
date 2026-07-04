@@ -2,15 +2,17 @@
 // No React, no DOM — Person A's PanelDiagram component can reuse layoutPanel()
 // and TYPE_STYLES, while renderPanelSvg() gives a complete render on its own.
 
-import type { ComponentType, PanelComponent, VisionComponent } from './types';
+import type { ComponentType, PanelComponent, VisionComponent, VisionParse } from './types';
 
 /** Accepts stored tiles or raw vision-parse components interchangeably. */
 export type DiagramComponent = PanelComponent | VisionComponent;
 
 export interface DiagramInput {
   components: DiagramComponent[];
-  /** Physical rows on the board; defaults to 1. */
-  rows?: number;
+  /** Physical rows on the board; defaults to 1. May be a string from legacy storage. */
+  rows?: number | string | null;
+  /** Modules per row in the widest tier. May be a string from legacy storage. */
+  cols?: number | string | null;
   /** Optional title drawn above the board (e.g. job name). */
   title?: string;
 }
@@ -28,6 +30,8 @@ export interface PanelLayout {
   width: number;
   height: number;
   rows: number;
+  /** Uniform modules-per-row used for drag slots and grid fallback. */
+  cols: number;
   tiles: TileLayout[];
   /** Vertical offset where tiles start (below the optional title). */
   headerHeight: number;
@@ -65,6 +69,8 @@ export function toPanelComponent(c: DiagramComponent): PanelComponent {
     return {
       id: c.id,
       order: c.order,
+      row: c.row,
+      col: c.col,
       type: c.type,
       rating: c.rating,
       purposeLabel: c.printed_label,
@@ -75,38 +81,164 @@ export function toPanelComponent(c: DiagramComponent): PanelComponent {
   return c;
 }
 
-/** Compute tile positions for a panel, honoring row count and physical order. */
+/** Physical rows a domestic consumer unit realistically has. */
+export const MAX_PANEL_ROWS = 4;
+
+/** Max rendered height for interactive/static panel SVGs in the UI. */
+export const DIAGRAM_MAX_HEIGHT = 520;
+
+/** Min rendered width so tall aspect ratios never collapse to a blank sliver. */
+export const DIAGRAM_MIN_WIDTH = 280;
+
+/**
+ * Sanitize a rows value from storage or a vision parse so the layout never
+ * degenerates: non-numeric/non-finite/out-of-range values fall back to 1 (the
+ * pre-rows auto-wrap behavior), and rows is capped both by the component
+ * count and by MAX_PANEL_ROWS (a bogus value like the board's way-count would
+ * otherwise render a uselessly tall single-column sliver).
+ *
+ * Accepts legacy IndexedDB values that may have been stored as strings.
+ */
+export function clampRows(
+  rows: number | string | null | undefined,
+  componentCount: number,
+): number {
+  const n = Math.floor(Number(rows));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, Math.max(1, componentCount), MAX_PANEL_ROWS);
+}
+
+/**
+ * Sanitize cols from storage or vision parse. Falls back to spreading components
+ * evenly across the given row count.
+ */
+export function clampCols(
+  cols: number | string | null | undefined,
+  componentCount: number,
+  rows: number,
+): number {
+  const r = clampRows(rows, componentCount);
+  const n = Math.floor(Number(cols));
+  if (Number.isFinite(n) && n >= 1) {
+    return Math.min(n, Math.max(1, componentCount));
+  }
+  return Math.max(1, Math.ceil(componentCount / r));
+}
+
+/** Derive rows/cols from a vision parse, preferring cols and ways over bad row counts. */
+export function inferGridFromVision(parse: VisionParse): { rows: number; cols: number } {
+  const n = parse.components.length;
+  const rows = clampRows(parse.panel.rows, n);
+  const ways = parse.panel.ways;
+  let cols = clampCols(parse.panel.cols, n, rows);
+  if (parse.panel.cols == null && ways != null && ways >= 1) {
+    cols = clampCols(Math.round(ways / rows), n, rows);
+  }
+  return { rows, cols };
+}
+
+/** Assign row/col/order from left-to-right top-to-bottom grid positions. */
+export function syncComponentGrid(
+  components: PanelComponent[],
+  rows: number,
+  cols: number,
+): PanelComponent[] {
+  const sorted = [...components].sort((a, b) => a.order - b.order);
+  const r = clampRows(rows, sorted.length);
+  const c = clampCols(cols, sorted.length, r);
+  return sorted.map((comp, i) => ({
+    ...comp,
+    order: i + 1,
+    row: Math.floor(i / c) + 1,
+    col: (i % c) + 1,
+  }));
+}
+
+/** Sort key for layout: explicit row/col when present, else order. */
+function layoutSortKey(c: PanelComponent): number {
+  if (c.row != null && c.col != null) return (c.row - 1) * 10_000 + (c.col - 1);
+  return (c.order - 1) * 10_000;
+}
+
+/**
+ * Pixel size for displaying a panel SVG with contain-style scaling: honor
+ * max height, but never shrink below min width (wrapper may scroll horizontally).
+ */
+export function diagramDisplaySize(
+  layoutWidth: number,
+  layoutHeight: number,
+): { width: number; height: number } {
+  const aspect = layoutWidth / layoutHeight;
+  let height = DIAGRAM_MAX_HEIGHT;
+  let width = height * aspect;
+  if (width < DIAGRAM_MIN_WIDTH) {
+    width = DIAGRAM_MIN_WIDTH;
+    height = width / aspect;
+  }
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
+/** Compute tile positions for a panel, honoring row/col grid and physical order. */
 export function layoutPanel(input: DiagramInput): PanelLayout {
   const components = input.components
     .map(toPanelComponent)
-    .sort((a, b) => a.order - b.order);
-  const rows = Math.max(1, input.rows ?? 1);
-  const perRow = Math.ceil(components.length / rows) || 1;
+    .sort((a, b) => layoutSortKey(a) - layoutSortKey(b));
+  const n = components.length;
   const headerHeight = input.title ? TILE.titleHeight : 0;
 
+  if (n === 0) {
+    return {
+      width: TILE.padding * 2 + TILE.width,
+      height: TILE.padding * 2 + headerHeight + TILE.height,
+      rows: 1,
+      cols: 1,
+      tiles: [],
+      headerHeight,
+    };
+  }
+
+  const rows = clampRows(input.rows, n);
+  const cols = clampCols(input.cols, n, rows);
+  const hasExplicitGrid = components.every(
+    (c) => c.row != null && c.col != null && c.row >= 1 && c.col >= 1,
+  );
+
   const tiles: TileLayout[] = components.map((component, i) => {
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
+    let row0: number;
+    let col0: number;
+    if (hasExplicitGrid) {
+      row0 = component.row! - 1;
+      col0 = component.col! - 1;
+    } else {
+      row0 = Math.floor(i / cols);
+      col0 = i % cols;
+    }
     return {
       component,
-      row,
-      x: TILE.padding + col * (TILE.width + TILE.gap),
-      y: TILE.padding + headerHeight + row * (TILE.height + TILE.rowGap),
+      row: row0,
+      x: TILE.padding + col0 * (TILE.width + TILE.gap),
+      y: TILE.padding + headerHeight + row0 * (TILE.height + TILE.rowGap),
       width: TILE.width,
       height: TILE.height,
     };
   });
 
-  const cols = Math.min(perRow, components.length) || 1;
-  const usedRows = Math.max(1, Math.ceil(components.length / perRow));
+  const usedRows = hasExplicitGrid
+    ? Math.max(...components.map((c) => c.row ?? 1), rows)
+    : Math.max(1, Math.ceil(n / cols));
+  const usedCols = hasExplicitGrid
+    ? Math.max(...components.map((c) => c.col ?? 1), cols)
+    : Math.min(cols, n);
+
   return {
-    width: TILE.padding * 2 + cols * TILE.width + (cols - 1) * TILE.gap,
+    width: TILE.padding * 2 + usedCols * TILE.width + (usedCols - 1) * TILE.gap,
     height:
       TILE.padding * 2 +
       headerHeight +
       usedRows * TILE.height +
       (usedRows - 1) * TILE.rowGap,
     rows: usedRows,
+    cols: usedCols,
     tiles,
     headerHeight,
   };
