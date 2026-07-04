@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { askJob, extractJson } from "../src/lib/llm";
+import { askJob, extractJson, normalizeVisionParse } from "../src/lib/llm";
 
 // Minimal .env.local loader so the script works without exporting vars.
 try {
@@ -103,6 +103,39 @@ console.log("extractJson offline tests:");
 }
 
 console.log(`\nextractJson: ${passed} passed, ${failed} failed`);
+
+console.log("\nnormalizeVisionParse offline tests:");
+{
+  const loose = {
+    panel: { ways: "12", rows: "2", cols: "6" },
+    components: [
+      {
+        id: "c1",
+        order: "1",
+        row: "1",
+        col: "1",
+        type: "MCB",
+        rating: "32A",
+        printed_label: "Kitchen",
+        confidence: "0.9",
+      },
+    ],
+  };
+  const n = normalizeVisionParse(loose);
+  check(
+    "coerces string numbers",
+    n !== null &&
+      n.panel.rows === 2 &&
+      n.components[0].order === 1 &&
+      n.components[0].type === "MCB",
+  );
+}
+{
+  const n = normalizeVisionParse({ panel: {}, components: [] });
+  check("rejects empty components", n === null);
+}
+
+console.log(`\nnormalizeVisionParse: ${passed} passed, ${failed} failed`);
 
 // ---------- Optional live call ----------
 

@@ -18,18 +18,109 @@ import { getEnv } from "./env";
 import {
   VISION_PARSE_PROMPT,
   askJobPrompt,
+  boardVoicePrompt,
   cleanNotePrompt,
   materialsPrompt,
 } from "./prompts";
 import type {
+  BoardVoiceParse,
   CleanedNote,
+  ComponentType,
   MaterialItem,
   Result,
+  VisionComponent,
   VisionParse,
 } from "./types";
 
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_DIRECT = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_MODEL = "gemini-3-flash-preview";
+
+const VALID_TYPES = new Set<ComponentType>([
+  "main_switch",
+  "RCD",
+  "RCBO",
+  "MCB",
+  "blank",
+  "other",
+]);
+
+/** Browser → same-origin Vite proxy; node scripts → direct API. */
+function geminiEndpoint(path: string): string {
+  if (typeof window !== "undefined") {
+    return `/gemini-api/v1beta${path}`;
+  }
+  return `${GEMINI_DIRECT}${path}`;
+}
+
+function toNum(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function normalizeComponentType(v: unknown): ComponentType {
+  const s = String(v ?? "other")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  if (VALID_TYPES.has(s as ComponentType)) return s as ComponentType;
+  if (s.includes("rcbo")) return "RCBO";
+  if (s.includes("rcd")) return "RCD";
+  if (s.includes("mcb")) return "MCB";
+  if (s.includes("main")) return "main_switch";
+  if (s.includes("blank") || s.includes("spare")) return "blank";
+  return "other";
+}
+
+/**
+ * Coerce loosely-typed model JSON into VisionParse. Gemini often returns
+ * numeric fields as strings or omits optional grid fields.
+ */
+export function normalizeVisionParse(raw: unknown): VisionParse | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.panel !== "object" || o.panel === null) return null;
+  if (!Array.isArray(o.components) || o.components.length === 0) return null;
+
+  const panelRaw = o.panel as Record<string, unknown>;
+  const components: VisionComponent[] = [];
+
+  for (let i = 0; i < o.components.length; i++) {
+    const item = o.components[i];
+    if (typeof item !== "object" || item === null) continue;
+    const c = item as Record<string, unknown>;
+    const order = toNum(c.order) ?? i + 1;
+    const label =
+      c.printed_label ?? c.printedLabel ?? c.label ?? c.purposeLabel ?? null;
+    components.push({
+      id: typeof c.id === "string" && c.id ? c.id : `c${order}`,
+      order,
+      ...(toNum(c.row) != null ? { row: toNum(c.row)! } : {}),
+      ...(toNum(c.col) != null ? { col: toNum(c.col)! } : {}),
+      type: normalizeComponentType(c.type),
+      rating:
+        c.rating == null || c.rating === ""
+          ? null
+          : String(c.rating),
+      printed_label: label == null || label === "" ? null : String(label),
+      confidence: Math.min(1, Math.max(0, toNum(c.confidence) ?? 0.5)),
+    });
+  }
+
+  if (components.length === 0) return null;
+
+  return {
+    panel: {
+      ways: toNum(panelRaw.ways),
+      rows: toNum(panelRaw.rows) ?? 1,
+      cols: toNum(panelRaw.cols),
+    },
+    components,
+  };
+}
 
 const VULTR_BASE = "https://api.vultrinference.com/v1";
 const VULTR_MODEL = "kimi-k2-instruct";
@@ -52,7 +143,7 @@ async function geminiComplete(
   parts.push({ text: prompt });
 
   const res = await fetch(
-    `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`,
+    geminiEndpoint(`/models/${GEMINI_MODEL}:generateContent`),
     {
       method: "POST",
       headers: {
@@ -176,19 +267,6 @@ export function extractJson<T>(raw: string): Result<T> {
 
 // ---------- Shape checks (basic, hackathon-pragmatic) ----------
 
-function isVisionParse(v: unknown): v is VisionParse {
-  if (typeof v !== "object" || v === null) return false;
-  const o = v as Record<string, unknown>;
-  if (typeof o.panel !== "object" || o.panel === null) return false;
-  if (!Array.isArray(o.components)) return false;
-  return o.components.every(
-    (c: unknown) =>
-      typeof c === "object" &&
-      c !== null &&
-      typeof (c as Record<string, unknown>).order === "number",
-  );
-}
-
 function isCleanedNote(v: unknown): v is CleanedNote {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
@@ -207,8 +285,25 @@ function isMaterialsArray(v: unknown): v is MaterialItem[] {
   );
 }
 
+function isBoardVoiceParse(v: unknown): v is BoardVoiceParse {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  if (!Array.isArray(o.items)) return false;
+  return o.items.every(
+    (i: unknown) => typeof i === "object" && i !== null,
+  );
+}
+
 function fail<T>(err: unknown): Result<T> {
-  return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg === "Load failed" || msg === "Failed to fetch") {
+    return {
+      ok: false,
+      error:
+        "Network error reaching the vision API — check your connection and reload the page.",
+    };
+  }
+  return { ok: false, error: msg };
 }
 
 // ---------- Public API (the UI codes against these exact signatures) ----------
@@ -228,12 +323,13 @@ export async function visionParse(
       image: { base64: imageBase64, mimeType },
       json: true,
     });
-    const result = extractJson<VisionParse>(raw);
+    const result = extractJson<unknown>(raw);
     if (!result.ok) return result;
-    if (!isVisionParse(result.value)) {
+    const normalized = normalizeVisionParse(result.value);
+    if (!normalized) {
       return { ok: false, error: "Vision JSON did not match expected shape", raw };
     }
-    return result;
+    return { ok: true, value: normalized };
   } catch (err) {
     return fail(err);
   }
@@ -286,6 +382,58 @@ export async function extractMaterials(
       ...(m.notes != null ? { notes: m.notes } : {}),
     }));
     return { ok: true, value: items };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/**
+ * Board-level voice transcript → per-breaker updates + notes.
+ * componentsJson = JSON.stringify of the panel's current PanelComponent[].
+ */
+export async function parseBoardVoice(
+  componentsJson: string,
+  transcript: string,
+  opts?: { provider?: TextProvider },
+): Promise<Result<BoardVoiceParse>> {
+  try {
+    const raw = await textComplete(boardVoicePrompt(componentsJson, transcript), {
+      provider: opts?.provider,
+      json: true,
+    });
+    const result = extractJson<BoardVoiceParse>(raw);
+    if (!result.ok) return result;
+    if (!isBoardVoiceParse(result.value)) {
+      return { ok: false, error: "Board voice JSON did not match expected shape", raw };
+    }
+    // Fill in fields the model may omit and drop empty items.
+    const items = result.value.items
+      .map((i) => ({
+        componentId: i.componentId ?? null,
+        purposeLabel: i.purposeLabel ?? null,
+        rating: i.rating ?? null,
+        note_text: i.note_text ?? null,
+        order: i.order ?? null,
+        row: i.row ?? null,
+        col: i.col ?? null,
+      }))
+      .filter(
+        (i) =>
+          i.purposeLabel ||
+          i.rating ||
+          i.note_text ||
+          i.order != null ||
+          i.row != null ||
+          i.col != null,
+      );
+    return {
+      ok: true,
+      value: {
+        items,
+        summary: result.value.summary ?? "",
+        layout: result.value.layout,
+      },
+    };
   } catch (err) {
     return fail(err);
   }
