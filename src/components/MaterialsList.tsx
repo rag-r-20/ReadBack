@@ -80,7 +80,7 @@ export function MaterialsList({ jobId, materials, onChanged }: Props) {
       </Card>
 
       {materials.length === 0 ? (
-        <p className="py-8 text-center text-sm text-zinc-400">
+        <p className="py-8 text-center text-body-md text-[var(--color-outline)]">
           No materials yet. Say something like “two metres of 6mm twin and earth
           and a spare 32 amp breaker.”
         </p>
@@ -89,14 +89,14 @@ export function MaterialsList({ jobId, materials, onChanged }: Props) {
           {materials.map((m) => (
             <li key={m.id}>
               <Card
-                className={`flex items-center gap-3 p-3 ${m.sourced ? "opacity-60" : ""}`}
+                className={`flex items-center gap-3 p-3 transition-opacity ${m.sourced ? "opacity-60" : "opacity-100"}`}
               >
                 <button
                   onClick={() => void toggle(m.id)}
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
+                  className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-md border-2 ${
                     m.sourced
-                      ? "border-emerald-600 bg-emerald-600 text-white"
-                      : "border-zinc-300 text-transparent"
+                      ? "border-[var(--color-status-safe)] bg-[var(--color-status-safe)] text-white"
+                      : "border-[var(--color-outline-variant)] text-transparent hover:border-[var(--color-outline)]"
                   }`}
                   aria-label={m.sourced ? "Mark as needed" : "Mark as sourced"}
                 >
@@ -104,14 +104,14 @@ export function MaterialsList({ jobId, materials, onChanged }: Props) {
                 </button>
                 <div className="min-w-0 flex-1">
                   <p
-                    className={`font-medium text-zinc-900 ${m.sourced ? "line-through" : ""}`}
+                    className={`text-body-lg font-bold text-[var(--color-on-surface)] ${m.sourced ? "line-through" : ""}`}
                   >
                     {m.quantity ? `${m.quantity} ` : ""}
                     {m.unit ? `${m.unit} ` : ""}
                     {m.item}
                   </p>
                   {(m.spec || m.notes) && (
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-body-md text-[var(--color-on-surface-variant)]">
                       {[m.spec, m.notes].filter(Boolean).join(" · ")}
                     </p>
                   )}
@@ -123,25 +123,25 @@ export function MaterialsList({ jobId, materials, onChanged }: Props) {
       )}
 
       {manualOpen ? (
-        <Card className="flex flex-col gap-2 p-3">
+        <Card className="flex flex-col gap-3 p-4">
           <input
             autoFocus
             value={manualItem}
             onChange={(e) => setManualItem(e.target.value)}
             placeholder="Item (e.g. Twin & earth cable)"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
           />
           <input
             value={manualSpec}
             onChange={(e) => setManualSpec(e.target.value)}
             placeholder="Spec (optional, e.g. 6mm²)"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
           />
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setManualOpen(false)}>
+            <Button variant="ghost" size="lg" onClick={() => setManualOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" block onClick={addManual}>
+            <Button size="lg" block onClick={addManual}>
               Add item
             </Button>
           </div>

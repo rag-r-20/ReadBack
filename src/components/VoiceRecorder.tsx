@@ -80,7 +80,7 @@ export function VoiceRecorder({
   return (
     <div className="flex flex-col items-center gap-2">
       {busy ? (
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-blue-700">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-surface-container)] text-[var(--color-primary)] shadow-[0_0_4px_var(--color-primary)]">
           <Spinner size={26} />
         </div>
       ) : (
@@ -89,8 +89,8 @@ export function VoiceRecorder({
           disabled={disabled}
           className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
             recording
-              ? "bg-red-600 hover:bg-red-700"
-              : "bg-blue-700 hover:bg-blue-800"
+              ? "bg-[var(--color-status-live)] animate-rec-pulse shadow-[0_0_8px_var(--color-status-live)]"
+              : "bg-[var(--color-primary-container)] hover:bg-[var(--color-inverse-primary)] shadow-[0_0_4px_var(--color-primary)]"
           }`}
           aria-label={recording ? "Stop recording" : "Start recording"}
         >
@@ -101,7 +101,7 @@ export function VoiceRecorder({
           )}
         </button>
       )}
-      <p className="text-sm text-zinc-500">
+      <p className="text-body-md text-[var(--color-on-surface-variant)]">
         {busy
           ? busyLabel ?? "Working…"
           : recording

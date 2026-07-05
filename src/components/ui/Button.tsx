@@ -5,18 +5,18 @@ type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 shadow-sm disabled:bg-blue-300",
+    "bg-[var(--color-primary-container)] text-white hover:bg-[var(--color-inverse-primary)] active:bg-blue-900 shadow-sm disabled:opacity-50",
   secondary:
-    "bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50 active:bg-zinc-100 disabled:text-zinc-400",
-  ghost: "bg-transparent text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200",
+    "bg-transparent text-[var(--color-on-surface)] border-2 border-[var(--color-slate-light)] hover:bg-[var(--color-surface-bright)] active:bg-[var(--color-surface-highest)] disabled:opacity-50",
+  ghost: "bg-transparent text-[var(--color-on-surface)] hover:bg-[var(--color-surface-bright)] active:bg-[var(--color-surface-highest)]",
   danger:
-    "bg-white text-red-700 border border-red-300 hover:bg-red-50 active:bg-red-100",
+    "bg-[var(--color-status-live)] text-white hover:bg-red-600 active:bg-red-700 disabled:opacity-50",
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "text-sm px-3 py-1.5 rounded-lg gap-1.5",
-  md: "text-sm px-4 py-2.5 rounded-xl gap-2",
-  lg: "text-base px-5 py-3 rounded-xl gap-2 font-semibold",
+  sm: "text-body-md px-3 py-2 rounded min-h-[48px] gap-2",
+  md: "text-body-md px-4 py-2 rounded min-h-[48px] gap-2",
+  lg: "text-body-lg px-5 py-3 rounded min-h-[48px] gap-2 font-bold",
 };
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {

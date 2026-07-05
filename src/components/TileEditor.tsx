@@ -88,14 +88,14 @@ export function TileEditor({
     <Sheet open onClose={onClose} title={`Breaker ${tile.order}`}>
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-2 gap-3">
-          <label className="col-span-2 flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-zinc-700">Type</span>
+          <label className="col-span-2 flex flex-col gap-2">
+            <span className="text-body-md font-bold text-[var(--color-on-surface)]">Type</span>
             <select
               value={tile.type}
               onChange={(e) =>
                 void saveMeta({ type: e.target.value as ComponentType })
               }
-              className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500"
+              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
             >
               {TYPES.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -105,25 +105,25 @@ export function TileEditor({
             </select>
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-zinc-700">Rating</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-body-md font-bold text-[var(--color-on-surface)]">Rating</span>
             <input
               value={rating}
               onChange={(e) => setRating(e.target.value)}
               onBlur={() => void saveMeta({ rating: rating.trim() || null })}
               placeholder="e.g. 32A"
-              className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500"
+              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-zinc-700">Label</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-body-md font-bold text-[var(--color-on-surface)]">Label</span>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onBlur={() => void saveMeta({ purposeLabel: label.trim() || null })}
               placeholder="e.g. Kitchen ring"
-              className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500"
+              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
             />
           </label>
         </div>
@@ -158,8 +158,8 @@ export function TileEditor({
           </Button>
         </div>
 
-        <div className="border-t border-zinc-100 pt-4">
-          <h3 className="mb-3 text-sm font-semibold text-zinc-700">
+        <div className="border-t border-[var(--color-slate-light)] pt-4">
+          <h3 className="mb-3 text-headline-md text-[var(--color-on-surface)]">
             Voice notes
           </h3>
 
@@ -176,7 +176,7 @@ export function TileEditor({
             </ul>
           )}
 
-          <div className="rounded-2xl bg-zinc-50 p-4">
+          <div className="rounded border border-[var(--color-slate-light)] bg-[var(--color-slate)] p-4">
             <VoiceRecorder
               onRecorded={handleRecorded}
               busy={pipeline !== "idle"}
@@ -205,10 +205,10 @@ function NoteCard({
   const rating = c.rating;
   const showApply = rating && rating !== tileRating;
   return (
-    <li className="rounded-xl border border-zinc-200 bg-white p-3">
-      <p className="font-medium text-zinc-900">{c.purpose}</p>
-      <p className="mt-0.5 text-sm text-zinc-600">{c.note_text}</p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
+    <li className="rounded border border-[var(--color-slate-light)] bg-[var(--color-slate)] p-3">
+      <p className="text-body-lg font-bold text-[var(--color-on-surface)]">{c.purpose}</p>
+      <p className="mt-1 text-body-md text-[var(--color-on-surface-variant)]">{c.note_text}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
         {c.area_served && <Chip>{c.area_served}</Chip>}
         {c.feeds.map((f, i) => (
           <Chip key={i}>{f}</Chip>
@@ -218,7 +218,7 @@ function NoteCard({
       {showApply && (
         <button
           onClick={() => onApplyRating(rating!)}
-          className="mt-2 text-xs font-medium text-blue-700 hover:underline"
+          className="mt-3 text-label-caps text-[var(--color-primary)] hover:underline min-h-[48px]"
         >
           Apply rating “{rating}” to tile
         </button>
@@ -236,8 +236,8 @@ function Chip({
 }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs ${
-        warn ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600"
+      className={`rounded-full px-3 py-1 text-technical-sm border ${
+        warn ? "bg-[var(--color-status-review)]/10 text-[var(--color-status-review)] border-[var(--color-status-review)]" : "bg-[var(--color-surface-container)] text-[var(--color-on-surface)] border-[var(--color-outline-variant)]"
       }`}
     >
       {children}

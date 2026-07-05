@@ -189,7 +189,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
 
   return (
     <>
-      <div className="mt-3 rounded-2xl bg-zinc-50 p-4">
+      <div className="mt-3 rounded border border-[var(--color-slate-light)] bg-[var(--color-slate)] p-4">
         <VoiceRecorder
           onRecorded={(blob) => void handleRecorded(blob, false)}
           busy={pipeline !== "idle"}
@@ -208,7 +208,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
           }
         />
         {handsFree.supported && (
-          <div className="mt-3 flex flex-col items-center gap-1 border-t border-zinc-200 pt-3">
+          <div className="mt-3 flex flex-col items-center gap-1 border-t border-[var(--color-slate-light)] pt-3">
             <Button
               variant={handsFree.armed ? "primary" : "secondary"}
               size="sm"
@@ -222,7 +222,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
                   : "Hands-free mode"}
             </Button>
             {handsFree.armed && handsFree.phase !== "recording" && (
-              <p className="text-xs text-zinc-500">
+              <p className="text-body-md text-[var(--color-on-surface-variant)] mt-1">
                 Say &ldquo;note&rdquo; to start, &ldquo;end note&rdquo; to stop
               </p>
             )}
@@ -234,12 +234,12 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
         <Sheet open onClose={() => setReview(null)} title="Here's what I understood">
           <div className="flex flex-col gap-4">
             {review.summary && (
-              <p className="text-sm text-zinc-600">{review.summary}</p>
+              <p className="text-body-md text-[var(--color-on-surface-variant)]">{review.summary}</p>
             )}
 
             {(review.layout?.rows != null || review.layout?.cols != null) && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+              <div className="rounded border border-[var(--color-primary)] bg-[var(--color-surface-container)] p-3 text-body-md text-[var(--color-on-surface)]">
+                <p className="text-label-caps text-[var(--color-primary)]">
                   Layout
                 </p>
                 <p className="mt-1">
@@ -263,29 +263,29 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
                   return (
                     <li
                       key={i}
-                      className="rounded-xl border border-zinc-200 bg-white p-3"
+                      className="rounded border border-[var(--color-slate-light)] bg-[var(--color-surface)] p-3"
                     >
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                      <p className="text-label-caps text-[var(--color-on-surface-variant)]">
                         {tile
                           ? `Breaker ${tile.order}${tile.purposeLabel ? ` — ${tile.purposeLabel}` : ""}`
                           : "Job note (no breaker matched)"}
                       </p>
-                      <div className="mt-1.5 flex flex-col gap-1 text-sm text-zinc-800">
+                      <div className="mt-1.5 flex flex-col gap-1 text-body-md text-[var(--color-on-surface)]">
                         {tile && item.purposeLabel && (
                           <p>
                             Label →{" "}
-                            <span className="font-medium">{item.purposeLabel}</span>
+                            <span className="font-bold">{item.purposeLabel}</span>
                           </p>
                         )}
                         {tile && item.rating && (
                           <p>
-                            Rating → <span className="font-medium">{item.rating}</span>
+                            Rating → <span className="font-bold">{item.rating}</span>
                           </p>
                         )}
                         {hasMove && (
                           <p>
                             Move →{" "}
-                            <span className="font-medium">
+                            <span className="font-bold">
                               {item.order != null && `position ${item.order}`}
                               {item.order != null && (item.row != null || item.col != null) && ", "}
                               {item.row != null && `row ${item.row}`}
@@ -295,7 +295,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
                           </p>
                         )}
                         {item.note_text && (
-                          <p className="text-zinc-600">&ldquo;{item.note_text}&rdquo;</p>
+                          <p className="text-[var(--color-on-surface-variant)]">&ldquo;{item.note_text}&rdquo;</p>
                         )}
                       </div>
                     </li>
@@ -304,7 +304,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
               </ul>
             )}
 
-            <p className="text-xs text-zinc-400">Heard: &ldquo;{review.transcript}&rdquo;</p>
+            <p className="text-body-md italic text-[var(--color-outline)]">Heard: &ldquo;{review.transcript}&rdquo;</p>
 
             <div className="flex gap-3">
               <Button

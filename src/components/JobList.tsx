@@ -66,15 +66,18 @@ export function JobList() {
         title="ReadBack"
         subtitle="Your jobs"
         right={
-          <Button size="sm" onClick={() => setCreating(true)}>
-            + New job
-          </Button>
+          <div className="flex items-center gap-3">
+            <span className="text-body-md text-[var(--color-on-surface-variant)]">test_user</span>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              + New job
+            </Button>
+          </div>
         }
       />
 
       <main className="flex-1 px-4 py-4">
         {loading ? (
-          <p className="py-16 text-center text-sm text-zinc-400">Loading…</p>
+          <p className="py-16 text-center text-body-md text-[var(--color-on-surface-variant)]">Loading…</p>
         ) : jobs.length === 0 ? (
           <EmptyState onNew={() => setCreating(true)} />
         ) : (
@@ -82,22 +85,22 @@ export function JobList() {
             {jobs.map((job) => (
               <li key={job.id}>
                 <Card
-                  className="flex cursor-pointer items-center gap-3 p-4 transition-colors hover:border-blue-300"
+                  className="flex cursor-pointer items-center gap-3 p-4 transition-colors hover:border-[var(--color-primary)]"
                   onClick={() => navigate(`/job/${job.id}`)}
                 >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-[var(--color-surface-container)] text-[var(--color-primary)]">
                     <PanelIcon />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-zinc-900">
+                    <p className="truncate text-body-lg font-bold text-[var(--color-on-surface)]">
                       {job.title}
                     </p>
                     {job.address && (
-                      <p className="truncate text-sm text-zinc-500">
+                      <p className="truncate text-body-md text-[var(--color-on-surface-variant)]">
                         {job.address}
                       </p>
                     )}
-                    <p className="text-xs text-zinc-400">
+                    <p className="text-body-md text-[var(--color-outline)]">
                       {new Date(job.createdAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -106,7 +109,7 @@ export function JobList() {
                       e.stopPropagation();
                       void handleDelete(job);
                     }}
-                    className="rounded-lg p-2 text-zinc-300 hover:bg-red-50 hover:text-red-500"
+                    className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded p-2 text-[var(--color-outline)] hover:bg-[var(--color-status-live)]/10 hover:text-[var(--color-status-live)]"
                     aria-label="Delete job"
                   >
                     <TrashIcon />
@@ -139,8 +142,8 @@ export function JobList() {
           className="flex flex-col gap-4"
           onSubmit={(e) => void handleCreate(e)}
         >
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-zinc-700">
+          <label className="flex flex-col gap-2">
+            <span className="text-body-md font-bold text-[var(--color-on-surface)]">
               Job name or address
             </span>
             <input
@@ -149,11 +152,11 @@ export function JobList() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. 14 Elm Road"
-              className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px] placeholder:text-[var(--color-on-surface-variant)]"
             />
           </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-zinc-700">
+          <label className="flex flex-col gap-2">
+            <span className="text-body-md font-bold text-[var(--color-on-surface)]">
               Address (optional)
             </span>
             <input
@@ -161,7 +164,7 @@ export function JobList() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Full address"
-              className="rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px] placeholder:text-[var(--color-on-surface-variant)]"
             />
           </label>
         </form>
@@ -173,11 +176,11 @@ export function JobList() {
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
     <div className="mt-16 flex flex-col items-center px-6 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded bg-[var(--color-surface-container)] text-[var(--color-primary)]">
         <PanelIcon size={32} />
       </div>
-      <h2 className="text-lg font-semibold text-zinc-900">No jobs yet</h2>
-      <p className="mt-1 max-w-xs text-sm text-zinc-500">
+      <h2 className="text-headline-md text-[var(--color-on-surface)]">No jobs yet</h2>
+      <p className="mt-2 max-w-xs text-body-md text-[var(--color-on-surface-variant)]">
         Snap a photo of a consumer unit and ReadBack turns it into a clean,
         labeled board you can read back days later.
       </p>

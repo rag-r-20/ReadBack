@@ -164,8 +164,8 @@ export function PanelDiagram({
 
   if (components.length === 0) {
     return (
-      <div className="flex min-h-[180px] w-full min-w-[280px] items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-center">
-        <p className="max-w-xs text-sm text-zinc-500">
+      <div className="flex min-h-[180px] w-full min-w-[280px] items-center justify-center rounded border border-dashed border-[var(--color-outline)] bg-[var(--color-surface)] px-4 py-8 text-center">
+        <p className="max-w-xs text-body-md text-[var(--color-on-surface-variant)]">
           No breakers detected — tap Recapture or add manually
         </p>
       </div>

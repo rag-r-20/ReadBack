@@ -176,15 +176,15 @@ export function JobView() {
         }
       />
 
-      <nav className="sticky top-[57px] z-20 flex border-b border-zinc-200 bg-white">
+      <nav className="sticky top-[57px] z-20 flex border-b border-[var(--color-slate-light)] bg-[var(--color-surface)]">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 border-b-2 px-3 py-3 text-body-md font-bold transition-colors ${
               tab === t.id
-                ? "border-blue-700 text-blue-700"
-                : "border-transparent text-zinc-500 hover:text-zinc-800"
+                ? "border-[var(--color-primary)] text-[var(--color-primary)]"
+                : "border-transparent text-[var(--color-on-surface-variant)] hover:text-white"
             }`}
           >
             {t.label}
@@ -290,7 +290,7 @@ function NoBoard({
 }) {
   return (
     <Card className="mt-8 flex flex-col items-center p-8 text-center">
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded bg-[var(--color-surface-container)] text-[var(--color-primary)]">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
           <rect
             x="3"
@@ -305,8 +305,8 @@ function NoBoard({
           <path d="M8 6l1.5-2h5L16 6" stroke="currentColor" strokeWidth="1.8" />
         </svg>
       </div>
-      <h2 className="text-lg font-semibold text-zinc-900">No board yet</h2>
-      <p className="mt-1 max-w-xs text-sm text-zinc-500">
+      <h2 className="text-headline-md text-[var(--color-on-surface)]">No board yet</h2>
+      <p className="mt-2 max-w-xs text-body-md text-[var(--color-on-surface-variant)]">
         Capture a photo or describe the board in plain English to generate a
         clean, labeled diagram.
       </p>

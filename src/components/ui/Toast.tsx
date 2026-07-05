@@ -25,9 +25,9 @@ interface ToastApi {
 const ToastContext = createContext<ToastApi | null>(null);
 
 const KIND_STYLES: Record<ToastKind, string> = {
-  info: "bg-zinc-900 text-white",
-  success: "bg-emerald-600 text-white",
-  error: "bg-red-600 text-white",
+  info: "bg-[var(--color-slate)] border border-[var(--color-slate-light)] text-[var(--color-on-surface)]",
+  success: "bg-[var(--color-status-safe)] text-white",
+  error: "bg-[var(--color-status-live)] text-white",
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -64,7 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <button
             key={t.id}
             onClick={() => remove(t.id)}
-            className={`pointer-events-auto max-w-md rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${KIND_STYLES[t.kind]}`}
+            className={`pointer-events-auto max-w-md rounded-xl px-4 py-3 text-body-md font-bold shadow-lg ${KIND_STYLES[t.kind]}`}
           >
             {t.message}
           </button>

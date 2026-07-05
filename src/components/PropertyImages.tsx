@@ -56,11 +56,11 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
 
   if (photos.length === 0) {
     return (
-      <label className="flex cursor-pointer flex-col items-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/40">
-        <span className="text-sm font-medium text-zinc-700">
+      <label className="flex cursor-pointer flex-col items-center rounded border border-dashed border-[var(--color-outline)] bg-[var(--color-surface)] p-6 text-center transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-surface-bright)] min-h-[48px]">
+        <span className="text-body-md font-bold text-[var(--color-on-surface)]">
           {uploading ? "Uploading…" : "Add property photos"}
         </span>
-        <span className="mt-1 text-xs text-zinc-500">
+        <span className="mt-1 text-body-md text-[var(--color-on-surface-variant)]">
           Extra shots of boards, labels, or the install — not tied to one circuit.
         </span>
         <input
@@ -79,12 +79,12 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
   }
 
   return (
-    <section>
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <section className="mb-4">
+      <div className="mb-2 flex min-h-[48px] items-center justify-between">
+        <h3 className="text-label-caps text-[var(--color-on-surface-variant)]">
           Property images ({photos.length})
         </h3>
-        <label className="cursor-pointer text-sm font-medium text-blue-700 hover:text-blue-800">
+        <label className="flex cursor-pointer min-h-[48px] items-center text-body-md font-bold text-[var(--color-primary)] hover:text-[var(--color-inverse-primary)]">
           {uploading ? "Uploading…" : "+ Add image"}
           <input
             type="file"
@@ -105,7 +105,7 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
           return (
             <div
               key={photo.id}
-              className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900"
+              className="h-20 w-20 shrink-0 overflow-hidden rounded border border-[var(--color-slate-light)] bg-black"
             >
               {url ? (
                 <img
@@ -114,7 +114,7 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="h-full w-full animate-pulse bg-zinc-800" />
+                <div className="h-full w-full animate-pulse bg-[var(--color-surface-container)]" />
               )}
             </div>
           );

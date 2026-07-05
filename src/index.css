@@ -1,14 +1,115 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #18181b;
-  --color-muted: #71717a;
-  --color-line: #e4e4e7;
-  --color-brand: #1d4ed8;
-  --color-brand-dark: #1e3a8a;
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Common Colors */
+  --color-status-live: #EF4444;
+  --color-status-safe: #22C55E;
+  --color-status-review: #F59E0B;
+  --color-zinc-100: #F4F4F5;
+  --color-dewalt-gold: #febd17;
+
+  /* Typography */
+  --font-hanken: "Hanken Grotesk", sans-serif;
+  --font-inter: "Inter", sans-serif;
+  --font-jetbrains: "JetBrains Mono", monospace;
+
+  /* Radiuses */
+  --radius-sm: 0.125rem;
+  --radius: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --spacing-unit: 4px;
+  --spacing-gutter: 16px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 32px;
+  --spacing-touch-target-min: 48px;
 }
 
+:root {
+  /* Light Theme Colors (Default) */
+  --color-surface: #ffffff;
+  --color-surface-dim: #f4f4f5;
+  --color-surface-bright: #e4e4e7;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fafafa;
+  --color-surface-container: #f4f4f5;
+  --color-surface-container-high: #e4e4e7;
+  --color-surface-container-highest: #d4d4d8;
+  --color-on-surface: #18181b;
+  --color-on-surface-variant: #52525b;
+  --color-inverse-surface: #18181b;
+  --color-inverse-on-surface: #f4f4f5;
+  --color-outline: #a1a1aa;
+  --color-outline-variant: #e4e4e7;
+  
+  --color-primary: #1d4ed8;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #1d4ed8;
+  --color-on-primary-container: #ffffff;
+  --color-inverse-primary: #3b82f6;
+  
+  --color-secondary: #f97316;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ffedd5;
+  --color-on-secondary-container: #9a3412;
+  
+  --color-error: #ef4444;
+  --color-on-error: #ffffff;
+  --color-error-container: #fee2e2;
+  --color-on-error-container: #991b1b;
+  
+  --color-background: #f4f4f5;
+  --color-on-background: #18181b;
+  
+  --color-slate: #ffffff;
+  --color-slate-light: #e4e4e7;
+}
+
+.dark {
+  /* Dark Theme Colors (Industrial-Tech) */
+  --color-surface: #121416;
+  --color-surface-dim: #121416;
+  --color-surface-bright: #37393b;
+  --color-surface-container-lowest: #0c0e10;
+  --color-surface-container-low: #1a1c1e;
+  --color-surface-container: #1e2022;
+  --color-surface-container-high: #282a2c;
+  --color-surface-container-highest: #333537;
+  --color-on-surface: #e2e2e5;
+  --color-on-surface-variant: #c2c6d6;
+  --color-inverse-surface: #e2e2e5;
+  --color-inverse-on-surface: #2f3133;
+  --color-outline: #8c909f;
+  --color-outline-variant: #424754;
+  
+  --color-primary: #adc6ff;
+  --color-on-primary: #002e6a;
+  --color-primary-container: #4d8eff;
+  --color-on-primary-container: #00285d;
+  --color-inverse-primary: #005ac2;
+  
+  --color-secondary: #ffb690;
+  --color-on-secondary: #552100;
+  --color-secondary-container: #ec6a06;
+  --color-on-secondary-container: #4a1c00;
+  
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  
+  --color-background: #121416;
+  --color-on-background: #e2e2e5;
+  
+  --color-slate: #2c2e33;
+  --color-slate-light: #3f424a;
+}
+
+/* Base resets & styles matching DESIGN.md */
 html,
 body,
 #root {
@@ -17,12 +118,79 @@ body,
 
 body {
   margin: 0;
-  background: #f4f4f5;
-  color: var(--color-ink);
-  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   touch-action: manipulation;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-hanken);
+}
+
+/* Typography styles based on DESIGN.md */
+.text-headline-lg {
+  font-family: var(--font-hanken);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 40px;
+  letter-spacing: -0.02em;
+}
+.text-headline-lg-mobile {
+  font-family: var(--font-hanken);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 32px;
+}
+.text-headline-md {
+  font-family: var(--font-hanken);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+}
+.text-body-lg {
+  font-family: var(--font-inter);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 28px;
+}
+.text-body-md {
+  font-family: var(--font-inter);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+.text-technical-data {
+  font-family: var(--font-jetbrains);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.text-technical-sm {
+  font-family: var(--font-jetbrains);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+.text-label-caps {
+  font-family: var(--font-inter);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* AI Glow effect */
+.ai-glow {
+  box-shadow: 0 0 4px var(--color-primary);
+}
+
+.ai-hud {
+  backdrop-filter: blur(12px);
+  background-color: color-mix(in srgb, var(--color-slate) 70%, transparent);
 }
 
 /* Keep the app usable inside iOS safe areas. */
@@ -35,10 +203,12 @@ body {
   100% {
     opacity: 1;
     transform: scale(1);
+    box-shadow: 0 0 4px var(--color-primary);
   }
   50% {
     opacity: 0.55;
     transform: scale(0.9);
+    box-shadow: 0 0 8px var(--color-primary);
   }
 }
 

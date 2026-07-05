@@ -91,14 +91,14 @@ export function JobSearch({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-zinc-700">
+        <label className="mb-2 block text-body-md font-bold text-[var(--color-on-surface)]">
           Search this job
         </label>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g. kitchen ring"
-          className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="w-full rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
         />
 
         {results && (
@@ -106,7 +106,7 @@ export function JobSearch({
             {results.tiles.length === 0 &&
             results.noteHits.length === 0 &&
             results.matHits.length === 0 ? (
-              <p className="text-sm text-zinc-400">No matches.</p>
+              <p className="text-body-md text-[var(--color-outline)]">No matches.</p>
             ) : (
               <>
                 {results.tiles.map((t) => (
@@ -141,8 +141,8 @@ export function JobSearch({
         )}
       </div>
 
-      <div className="border-t border-zinc-100 pt-5">
-        <label className="mb-1.5 block text-sm font-medium text-zinc-700">
+      <div className="border-t border-[var(--color-slate-light)] pt-5">
+        <label className="mb-2 block text-body-md font-bold text-[var(--color-on-surface)]">
           Ask your job
         </label>
         <div className="flex gap-2">
@@ -151,7 +151,7 @@ export function JobSearch({
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAsk()}
             placeholder="e.g. what rating is the kitchen ring?"
-            className="min-w-0 flex-1 rounded-xl border border-zinc-300 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="min-w-0 flex-1 rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
           />
           <Button onClick={handleAsk} disabled={asking}>
             {asking ? <Spinner size={18} /> : "Ask"}
@@ -159,7 +159,7 @@ export function JobSearch({
         </div>
 
         {answer && (
-          <Card className="mt-3 whitespace-pre-wrap p-4 text-sm text-zinc-700">
+          <Card className="mt-3 whitespace-pre-wrap p-4 text-body-md text-[var(--color-on-surface)] ai-glow ai-hud">
             {answer}
           </Card>
         )}
@@ -183,15 +183,15 @@ function ResultRow({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="flex w-full items-start gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left enabled:hover:border-blue-300 disabled:cursor-default"
+      className="flex w-full items-start gap-3 rounded border border-[var(--color-slate-light)] bg-[var(--color-surface)] p-3 text-left enabled:hover:border-[var(--color-primary)] disabled:cursor-default"
     >
-      <span className="mt-0.5 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
+      <span className="mt-1 rounded-full bg-[var(--color-surface-container)] px-3 py-1 text-label-caps text-[var(--color-on-surface-variant)]">
         {kind}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium text-zinc-900">{title}</span>
+        <span className="block truncate text-body-lg font-bold text-[var(--color-on-surface)]">{title}</span>
         {subtitle && (
-          <span className="block truncate text-sm text-zinc-500">{subtitle}</span>
+          <span className="block truncate text-body-md text-[var(--color-on-surface-variant)]">{subtitle}</span>
         )}
       </span>
     </button>

@@ -192,14 +192,14 @@ export function CameraCapture() {
           <ReadingState />
         ) : stage === "preview" && previewUrl ? (
           <div className="flex flex-1 flex-col">
-            <div className="flex flex-1 items-center justify-center bg-zinc-900 p-3">
+            <div className="flex flex-1 items-center justify-center bg-black p-3">
               <img
                 src={previewUrl}
                 alt="Captured board"
-                className="max-h-[65vh] w-auto rounded-xl object-contain"
+                className="max-h-[65vh] w-auto rounded object-contain"
               />
             </div>
-            <div className="safe-bottom flex gap-3 border-t border-zinc-200 bg-white p-4">
+            <div className="safe-bottom flex gap-3 border-t border-[var(--color-slate-light)] bg-[var(--color-surface)] p-4">
               <Button variant="secondary" size="lg" onClick={retake}>
                 Retake
               </Button>
@@ -210,7 +210,7 @@ export function CameraCapture() {
           </div>
         ) : (
           <div className="flex flex-1 flex-col">
-            <div className="relative flex flex-1 items-center justify-center bg-zinc-900">
+            <div className="relative flex flex-1 items-center justify-center bg-black">
               <video
                 ref={videoRef}
                 playsInline
@@ -218,16 +218,16 @@ export function CameraCapture() {
                 className={`max-h-[65vh] w-full object-contain ${cameraReady ? "" : "hidden"}`}
               />
               {!cameraReady && (
-                <div className="px-8 py-16 text-center text-sm text-zinc-300">
-                  <p className="mb-2 font-medium">Camera not available</p>
-                  <p className="text-zinc-400">
+                <div className="px-8 py-16 text-center text-body-md text-[var(--color-on-surface-variant)]">
+                  <p className="mb-2 font-bold text-[var(--color-on-surface)]">Camera not available</p>
+                  <p>
                     Use “Choose from photos” below to pick an existing picture
                     of the board instead.
                   </p>
                 </div>
               )}
             </div>
-            <div className="safe-bottom flex flex-col gap-3 border-t border-zinc-200 bg-white p-4">
+            <div className="safe-bottom flex flex-col gap-3 border-t border-[var(--color-slate-light)] bg-[var(--color-surface)] p-4">
               {cameraReady && (
                 <Button size="lg" block onClick={handleShutter}>
                   Take photo
@@ -259,12 +259,12 @@ export function CameraCapture() {
 function ReadingState() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-      <Spinner size={40} className="text-blue-700" />
+      <Spinner size={40} className="text-[var(--color-primary)]" />
       <div>
-        <p className="text-lg font-semibold text-zinc-900">
+        <p className="text-headline-md text-[var(--color-on-surface)]">
           Reading your board…
         </p>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-2 text-body-md text-[var(--color-on-surface-variant)]">
           Turning the photo into a clean, labeled diagram.
         </p>
       </div>

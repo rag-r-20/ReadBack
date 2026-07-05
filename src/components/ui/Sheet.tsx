@@ -43,15 +43,15 @@ export function Sheet({ open, onClose, title, children, footer, className = "" }
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className={`safe-bottom relative flex max-h-[min(92dvh,100%)] w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:max-h-[85vh] sm:w-auto sm:min-w-[420px] sm:max-w-lg sm:rounded-3xl ${className}`}
+        className={`safe-bottom relative flex max-h-[min(92dvh,100%)] w-full flex-col rounded-t-lg bg-[var(--color-slate)] shadow-[0_0_24px_rgba(59,130,246,0.1)] sm:max-h-[85vh] sm:w-auto sm:min-w-[420px] sm:max-w-lg sm:rounded-lg ${className}`}
       >
         {title !== undefined && (
-          <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-5 py-4">
-            <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+          <div className="flex shrink-0 items-center justify-between border-b border-[var(--color-slate-light)] px-5 py-4">
+            <h2 className="text-headline-md text-[var(--color-on-surface)]">{title}</h2>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+              className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded p-2 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-bright)] hover:text-white"
               aria-label="Close"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -69,7 +69,7 @@ export function Sheet({ open, onClose, title, children, footer, className = "" }
           {children}
         </div>
         {footer && (
-          <div className="shrink-0 border-t border-zinc-100 bg-white px-5 py-4">
+          <div className="shrink-0 border-t border-[var(--color-slate-light)] bg-[var(--color-slate)] px-5 py-4">
             {footer}
           </div>
         )}

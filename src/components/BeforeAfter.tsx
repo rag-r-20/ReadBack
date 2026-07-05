@@ -50,10 +50,10 @@ export function BeforeAfter({
     <div className="grid gap-3 md:grid-cols-2">
       {photoUrl && (
         <figure className="flex flex-col">
-          <figcaption className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          <figcaption className="mb-2 text-label-caps text-[var(--color-on-surface-variant)]">
             Before
           </figcaption>
-          <div className="flex flex-1 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-900">
+          <div className="flex flex-1 items-center justify-center overflow-hidden rounded border border-[var(--color-slate-light)] bg-black">
             <img
               src={photoUrl}
               alt="Original board photo"
@@ -63,10 +63,10 @@ export function BeforeAfter({
         </figure>
       )}
       <figure className="flex flex-col">
-        <figcaption className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        <figcaption className="mb-2 text-label-caps text-[var(--color-on-surface-variant)]">
           {photoUrl ? "After" : "Board"}
         </figcaption>
-        <div className="flex flex-1 items-center rounded-2xl border border-zinc-200 bg-white p-2">
+        <div className="flex flex-1 items-center rounded border border-[var(--color-slate-light)] bg-[var(--color-slate)] p-2">
           <PanelDiagram
             components={components}
             rows={rows}

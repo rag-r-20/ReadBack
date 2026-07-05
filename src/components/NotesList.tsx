@@ -11,7 +11,7 @@ interface Props {
 export function NotesList({ notes, components, onSelectTile }: Props) {
   if (notes.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-zinc-400">
+      <p className="py-12 text-center text-body-md text-[var(--color-outline)]">
         No notes yet. Tap a breaker on the board and describe it out loud.
       </p>
     );
@@ -27,19 +27,19 @@ export function NotesList({ notes, components, onSelectTile }: Props) {
         return (
           <li key={n.id}>
             <Card className="p-4">
-              <div className="mb-1 flex items-center gap-2">
-                <p className="font-medium text-zinc-900">{n.cleaned.purpose}</p>
+              <div className="mb-1 flex items-center gap-3">
+                <p className="text-body-lg font-bold text-[var(--color-on-surface)]">{n.cleaned.purpose}</p>
                 {order !== undefined && (
                   <button
                     onClick={() => n.componentId && onSelectTile?.(n.componentId)}
-                    className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                    className="rounded-full bg-[var(--color-surface-container)] px-3 py-1 text-label-caps text-[var(--color-primary)] hover:bg-[var(--color-surface-bright)] min-h-[48px]"
                   >
                     Breaker {order}
                   </button>
                 )}
               </div>
-              <p className="text-sm text-zinc-600">{n.cleaned.note_text}</p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <p className="text-body-md text-[var(--color-on-surface-variant)]">{n.cleaned.note_text}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {n.cleaned.rating && <Chip>{n.cleaned.rating}</Chip>}
                 {n.cleaned.area_served && <Chip>{n.cleaned.area_served}</Chip>}
                 {n.cleaned.feeds.map((f, i) => (
@@ -60,8 +60,8 @@ export function NotesList({ notes, components, onSelectTile }: Props) {
 function Chip({ children, warn }: { children: ReactNode; warn?: boolean }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs ${
-        warn ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-600"
+      className={`rounded-full px-3 py-1 text-technical-sm border ${
+        warn ? "bg-[var(--color-status-review)]/10 text-[var(--color-status-review)] border-[var(--color-status-review)]" : "bg-[var(--color-surface-container)] text-[var(--color-on-surface)] border-[var(--color-outline-variant)]"
       }`}
     >
       {children}

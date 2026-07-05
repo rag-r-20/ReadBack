@@ -7,7 +7,7 @@ interface Props extends HTMLAttributes<HTMLDivElement> {
 export function Card({ className = "", children, ...rest }: Props) {
   return (
     <div
-      className={`rounded-2xl border border-zinc-200 bg-white shadow-sm ${className}`}
+      className={`rounded border border-[var(--color-slate-light)] bg-[var(--color-slate)] shadow-sm ${className}`}
       {...rest}
     >
       {children}
