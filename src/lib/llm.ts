@@ -1,18 +1,12 @@
-// Thin LLM provider switch for ReadBack.
+// Thin LLM provider wrapper for ReadBack.
 //
-// Gemini (PRIMARY, vision + text): REST generateContent, called with plain
-//   fetch (no SDK).
+// Gemini (vision + text): REST generateContent, called with plain fetch (no
+//   SDK).
 //   POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent
 //   header x-goog-api-key: <VITE_GEMINI_API_KEY>; image via inline_data base64;
 //   JSON output requested via generationConfig.responseMimeType.
 //   Model: gemini-3-flash-preview (free tier; gemini-3.1-flash-lite is the
 //   cheaper free-tier alternative if quota gets tight).
-//
-// Vultr Serverless Inference (SECONDARY, TEXT-ONLY): OpenAI-compatible.
-//   POST https://api.vultrinference.com/v1/chat/completions
-//   header Authorization: Bearer <VITE_VULTR_API_KEY>
-//   Used by default for text calls when the key is set (conserves Gemini
-//   free-tier quota); any failure falls back to Gemini automatically.
 
 import { getEnv } from "./env";
 import {
@@ -123,9 +117,6 @@ export function normalizeVisionParse(raw: unknown): VisionParse | null {
   };
 }
 
-const VULTR_BASE = "https://api.vultrinference.com/v1";
-const VULTR_MODEL = "kimi-k2-instruct";
-
 // ---------- Raw completions (throw on failure; wrapped by the public API) ----
 
 async function geminiComplete(
@@ -173,55 +164,14 @@ async function geminiComplete(
   return text;
 }
 
-async function vultrComplete(prompt: string): Promise<string> {
-  const apiKey = getEnv("VITE_VULTR_API_KEY");
-  if (!apiKey) throw new Error("VITE_VULTR_API_KEY not set");
+export type TextProvider = "gemini";
 
-  const res = await fetch(`${VULTR_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: VULTR_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      max_tokens: 2048,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Vultr ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  }
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Vultr: empty completion");
-  return text;
-}
-
-export type TextProvider = "gemini" | "vultr";
-
-/**
- * Text completion with the default routing: Vultr when its key is set
- * (conserves Gemini quota), Gemini otherwise; Vultr failures automatically
- * fall back to Gemini.
- */
+/** Text completion via Gemini. */
 async function textComplete(
   prompt: string,
   opts: { provider?: TextProvider; json?: boolean } = {},
 ): Promise<string> {
-  if (opts.provider === "gemini") return geminiComplete(prompt, { json: opts.json });
-  if (opts.provider === "vultr") return vultrComplete(prompt);
-
-  if (getEnv("VITE_VULTR_API_KEY")) {
-    try {
-      return await vultrComplete(prompt);
-    } catch (err) {
-      console.warn("Vultr failed, falling back to Gemini:", err);
-    }
-  }
+  void opts.provider; // only one text provider today
   return geminiComplete(prompt, { json: opts.json });
 }
 
@@ -310,7 +260,7 @@ function fail<T>(err: unknown): Result<T> {
 // ---------- Public API (the UI codes against these exact signatures) ----------
 
 /**
- * Photo → panel JSON. Vision is Gemini-only (Vultr is text-only).
+ * Photo → panel JSON. Vision is Gemini-only.
  * On {ok:false} the UI should offer the manual tile-placement fallback.
  */
 export async function visionParse(
