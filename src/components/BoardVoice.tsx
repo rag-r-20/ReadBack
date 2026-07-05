@@ -53,6 +53,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
   const toast = useToast();
   const [pipeline, setPipeline] = useState<Pipeline>("idle");
   const [review, setReview] = useState<Review | null>(null);
+  const [open, setOpen] = useState(false);
 
   function tileFor(id: string | null): PanelComponent | undefined {
     return id ? components.find((c) => c.id === id) : undefined;
@@ -96,6 +97,7 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
       toast.error("Couldn't find anything actionable in that note.");
       return;
     }
+    setOpen(false);
     setReview({
       transcript,
       summary: parsed.value.summary,
@@ -187,48 +189,84 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
     }
   }
 
+  const busy = pipeline !== "idle";
+  const listening = handsFree.phase === "recording" || busy;
+
   return (
     <>
-      <div className="mt-3 rounded border border-[var(--color-slate-light)] bg-[var(--color-slate)] p-4">
-        <VoiceRecorder
-          onRecorded={(blob) => void handleRecorded(blob, false)}
-          busy={pipeline !== "idle"}
-          disabled={handsFree.armed}
-          busyLabel={
-            pipeline === "transcribing"
-              ? "Transcribing…"
-              : pipeline === "parsing"
-                ? "Making sense of it…"
-                : "Applying…"
-          }
-          idleLabel={
-            handsFree.armed
-              ? "Hands-free on — use “note” / “end note”, or turn it off"
-              : "Describe the board — labels, layout, or moves"
-          }
-        />
-        {handsFree.supported && (
-          <div className="mt-3 flex flex-col items-center gap-1 border-t border-[var(--color-slate-light)] pt-3">
-            <Button
-              variant={handsFree.armed ? "primary" : "secondary"}
-              size="sm"
-              onClick={handsFree.toggle}
-              disabled={pipeline !== "idle"}
-            >
-              {handsFree.phase === "recording"
-                ? `Listening… ${handsFree.seconds}s — say "end note"`
-                : handsFree.armed
-                  ? 'Hands-free on — say "note" to record'
-                  : "Hands-free mode"}
-            </Button>
-            {handsFree.armed && handsFree.phase !== "recording" && (
-              <p className="text-body-md text-[var(--color-on-surface-variant)] mt-1">
-                Say &ldquo;note&rdquo; to start, &ldquo;end note&rdquo; to stop
-              </p>
+      {/* Floating mic FAB — bottom-right of the board area. */}
+      <div className="pointer-events-none fixed bottom-6 right-6 z-30 flex items-center gap-3 safe-bottom">
+        <span
+          className={`pointer-events-none rounded-full border px-3 py-1.5 text-label-caps backdrop-blur ${
+            listening
+              ? "border-[var(--color-status-live)]/50 bg-[var(--color-status-live)]/15 text-[var(--color-status-live)]"
+              : "border-[var(--color-slate-light)] bg-[var(--color-slate)]/90 text-[var(--color-on-surface-variant)]"
+          }`}
+        >
+          {listening ? "Listening…" : "Edit Diagram"}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Edit diagram by voice"
+          className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-colors ${
+            listening
+              ? "bg-[var(--color-status-live)] animate-rec-pulse shadow-[0_0_10px_var(--color-status-live)]"
+              : "bg-[var(--color-primary-container)] hover:bg-[var(--color-inverse-primary)] shadow-[0_0_8px_var(--color-primary)]"
+          }`}
+        >
+          <MicIcon />
+        </button>
+      </div>
+
+      <Sheet open={open} onClose={() => setOpen(false)} title="Edit diagram by voice">
+        <div className="flex flex-col gap-3">
+          <p className="text-body-md text-[var(--color-on-surface-variant)]">
+            Rename circuits, fix ratings, or change the layout — just talk. Say
+            things like &ldquo;position four is the kitchen ring, thirty-two amp.&rdquo;
+          </p>
+          <div className="rounded-lg border border-[var(--color-slate-light)] bg-[var(--color-surface-container-lowest)] p-4">
+            <VoiceRecorder
+              onRecorded={(blob) => void handleRecorded(blob, false)}
+              busy={pipeline !== "idle"}
+              disabled={handsFree.armed}
+              busyLabel={
+                pipeline === "transcribing"
+                  ? "Transcribing…"
+                  : pipeline === "parsing"
+                    ? "Making sense of it…"
+                    : "Applying…"
+              }
+              idleLabel={
+                handsFree.armed
+                  ? "Hands-free on — use “note” / “end note”, or turn it off"
+                  : "Describe the board — labels, layout, or moves"
+              }
+            />
+            {handsFree.supported && (
+              <div className="mt-3 flex flex-col items-center gap-1 border-t border-[var(--color-slate-light)] pt-3">
+                <Button
+                  variant={handsFree.armed ? "primary" : "secondary"}
+                  size="sm"
+                  onClick={handsFree.toggle}
+                  disabled={pipeline !== "idle"}
+                >
+                  {handsFree.phase === "recording"
+                    ? `Listening… ${handsFree.seconds}s — say "end note"`
+                    : handsFree.armed
+                      ? 'Hands-free on — say "note" to record'
+                      : "Hands-free mode"}
+                </Button>
+                {handsFree.armed && handsFree.phase !== "recording" && (
+                  <p className="text-body-md text-[var(--color-on-surface-variant)] mt-1">
+                    Say &ldquo;note&rdquo; to start, &ldquo;end note&rdquo; to stop
+                  </p>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </Sheet>
 
       {review && (
         <Sheet open onClose={() => setReview(null)} title="Here's what I understood">
@@ -328,5 +366,19 @@ export function BoardVoice({ jobId, panel, components, onChanged }: Props) {
         </Sheet>
       )}
     </>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
+      <path
+        d="M6 11a6 6 0 0 0 12 0M12 17v3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

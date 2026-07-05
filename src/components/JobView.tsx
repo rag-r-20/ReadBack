@@ -23,6 +23,7 @@ import { NotesList } from "./NotesList";
 import { MaterialsList } from "./MaterialsList";
 import { JobSearch } from "./JobSearch";
 import { PropertyImages } from "./PropertyImages";
+import { exportBoardPdf } from "./ExportPdf";
 
 type Tab = "board" | "notes" | "materials" | "ask";
 
@@ -30,7 +31,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "board", label: "Board" },
   { id: "notes", label: "Notes" },
   { id: "materials", label: "Materials" },
-  { id: "ask", label: "Ask" },
+  { id: "ask", label: "Ask AI" },
 ];
 
 export function JobView() {
@@ -166,25 +167,45 @@ export function JobView() {
         back
         backTo="/"
         right={
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => navigate(`/job/${jobId}/capture`)}
-          >
-            {panel ? "Recapture" : "Capture"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => navigate(`/job/${jobId}/capture`)}
+            >
+              {panel ? "Recapture" : "Capture"}
+            </Button>
+            {panel && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() =>
+                  exportBoardPdf({
+                    job: job
+                      ? { title: job.title, address: job.address }
+                      : null,
+                    panel: { label: panel.label },
+                    components,
+                    notesCount: notes.length,
+                  })
+                }
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
         }
       />
 
-      <nav className="sticky top-[57px] z-20 flex border-b border-[var(--color-slate-light)] bg-[var(--color-surface)]">
+      <nav className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-[var(--color-slate-light)] bg-[var(--color-surface)]/95 px-2 backdrop-blur">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 border-b-2 px-3 py-3 text-body-md font-bold transition-colors ${
+            className={`shrink-0 border-b-2 px-4 py-3 text-body-md font-bold transition-colors ${
               tab === t.id
                 ? "border-[var(--color-primary)] text-[var(--color-primary)]"
-                : "border-transparent text-[var(--color-on-surface-variant)] hover:text-white"
+                : "border-transparent text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)]"
             }`}
           >
             {t.label}
@@ -196,7 +217,7 @@ export function JobView() {
         ))}
       </nav>
 
-      <main className="flex-1 px-4 py-4">
+      <main className="flex-1 px-4 py-5 lg:px-8">
         <PropertyImages jobId={jobId} photos={photos} onChanged={refresh} />
 
         {tab === "board" &&
@@ -204,7 +225,9 @@ export function JobView() {
             <>
               <ErrorBoundary>
                 {boardCaption && (
-                  <p className="mb-3 text-sm text-zinc-500">{boardCaption}</p>
+                  <p className="mb-3 text-technical-sm text-[var(--color-on-surface-variant)]">
+                    {boardCaption}
+                  </p>
                 )}
                 <BeforeAfter
                   photoId={panel.sourcePhotoId}
