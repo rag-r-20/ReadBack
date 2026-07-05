@@ -1,12 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { PanelComponent } from "../lib/types";
-import {
-  diagramDisplaySize,
-  layoutPanel,
-  TYPE_STYLES,
-  TILE,
-} from "../lib/diagram";
+import type { ComponentType, PanelComponent } from "../lib/types";
+import { diagramDisplaySize, layoutPanel, TILE } from "../lib/diagram";
 import type { TileLayout } from "../lib/diagram";
 
 interface Props {
@@ -43,7 +38,34 @@ interface DragState {
 
 const DRAG_THRESHOLD_PX = 6;
 
-/** Interactive SVG board — same geometry/colors as lib/diagram's static render. */
+/** Confidence below this flags a tile as "needs review". */
+export const REVIEW_CONFIDENCE = 0.7;
+
+// Industrial-Tech dark palette (SVG can't read CSS vars, so mirror them here).
+const MONO = "'JetBrains Mono', ui-monospace, monospace";
+const SANS = "Inter, system-ui, -apple-system, sans-serif";
+const CARD_FILL = "#17191c";
+const CARD_FILL_DIM = "#131518";
+const CARD_STROKE = "#3f424a";
+const BOARD_STROKE = "#2a2d31";
+const SEL = "#4d8eff";
+const BLUE = "#4d8eff";
+const GREEN = "#22c55e";
+const AMBER = "#f59e0b";
+const WHITE = "#e2e2e5";
+const MUTED = "#8c909f";
+const DIM = "#5b5f68";
+
+const CAPTIONS: Record<ComponentType, string> = {
+  main_switch: "MAIN",
+  RCD: "RCD",
+  RCBO: "RCBO",
+  MCB: "MCB",
+  blank: "BLANK",
+  other: "AUX",
+};
+
+/** Interactive SVG board — dark Industrial-Tech tiles, drag-to-reorder. */
 export function PanelDiagram({
   components,
   rows,
@@ -164,7 +186,7 @@ export function PanelDiagram({
 
   if (components.length === 0) {
     return (
-      <div className="flex min-h-[180px] w-full min-w-[280px] items-center justify-center rounded border border-dashed border-[var(--color-outline)] bg-[var(--color-surface)] px-4 py-8 text-center">
+      <div className="flex min-h-[180px] w-full min-w-[280px] items-center justify-center rounded border border-dashed border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-4 py-8 text-center">
         <p className="max-w-xs text-body-md text-[var(--color-on-surface-variant)]">
           No breakers detected — tap Recapture or add manually
         </p>
@@ -181,7 +203,7 @@ export function PanelDiagram({
         className="mx-auto block max-w-none shrink-0"
         width={displaySize.width}
         height={displaySize.height}
-        fontFamily="system-ui, -apple-system, sans-serif"
+        fontFamily={SANS}
       >
         <rect
           x={4}
@@ -189,17 +211,18 @@ export function PanelDiagram({
           width={layout.width - 8}
           height={layout.height - 8}
           rx={14}
-          fill="#fafafa"
-          stroke="#d4d4d8"
-          strokeWidth={2}
+          fill="none"
+          stroke={BOARD_STROKE}
+          strokeWidth={1.5}
         />
         {title && (
           <text
             x={TILE.padding}
-            y={TILE.padding + 16}
-            fontSize={15}
+            y={TILE.padding + 14}
+            fontSize={14}
             fontWeight="bold"
-            fill="#18181b"
+            fill={WHITE}
+            fontFamily={SANS}
           >
             {truncate(title, 60)}
           </text>
@@ -267,12 +290,12 @@ function DropIndicator({
         y1={y - 4}
         x2={x}
         y2={y + TILE.height + 4}
-        stroke="#1d4ed8"
+        stroke={SEL}
         strokeWidth={3}
         strokeLinecap="round"
       />
-      <circle cx={x} cy={y - 4} r={4} fill="#1d4ed8" />
-      <circle cx={x} cy={y + TILE.height + 4} r={4} fill="#1d4ed8" />
+      <circle cx={x} cy={y - 4} r={4} fill={SEL} />
+      <circle cx={x} cy={y + TILE.height + 4} r={4} fill={SEL} />
     </g>
   );
 }
@@ -303,10 +326,21 @@ function Tile({
   onPointerUp?: (e: ReactPointerEvent<SVGGElement>) => void;
 }) {
   const c = tile.component;
-  const st = TYPE_STYLES[c.type] ?? TYPE_STYLES.other;
   const cx = tile.x + tile.width / 2;
   const clickable = Boolean(onClick);
   const hasNote = c.noteIds.length > 0;
+
+  const isBlank = c.type === "blank";
+  const isMain = c.type === "main_switch";
+  const lowConf = !isBlank && c.confidence < REVIEW_CONFIDENCE;
+  const active = selected || highlighted;
+
+  const accent = isMain ? GREEN : lowConf ? AMBER : BLUE;
+  const border = active ? SEL : isMain ? GREEN : lowConf ? AMBER : CARD_STROKE;
+  const borderW = active ? 3 : isMain || lowConf ? 2 : 1.4;
+  const fill = isBlank ? CARD_FILL_DIM : CARD_FILL;
+  const caption = CAPTIONS[c.type] ?? "AUX";
+  const chipTextColor = lowConf ? "#141618" : "#ffffff";
 
   return (
     <g
@@ -328,110 +362,150 @@ function Tile({
         width={tile.width}
         height={tile.height}
         rx={9}
-        fill={st.fill}
-        stroke={selected || highlighted ? "#1d4ed8" : st.stroke}
-        strokeWidth={selected || highlighted ? 3.5 : 2}
-        strokeDasharray={st.dashed ? "6 4" : undefined}
+        fill={fill}
+        stroke={border}
+        strokeWidth={borderW}
       />
 
-      <text x={tile.x + 8} y={tile.y + 17} fontSize={11} fill="#71717a">
-        {c.order}
+      {/* Position number, mono, top-left. */}
+      <text
+        x={tile.x + 9}
+        y={tile.y + 18}
+        fontSize={11}
+        fontFamily={MONO}
+        fill={MUTED}
+      >
+        #{c.order}
       </text>
 
-      {c.type === "blank" ? (
+      {/* Needs-review flag, top-right. */}
+      {lowConf && (
+        <g>
+          <rect
+            x={tile.x + tile.width - 26}
+            y={tile.y + 8}
+            width={18}
+            height={13}
+            rx={3}
+            fill={AMBER}
+          />
+          <text
+            x={tile.x + tile.width - 17}
+            y={tile.y + 18}
+            fontSize={10}
+            fontWeight="bold"
+            fill="#141618"
+            textAnchor="middle"
+            fontFamily={MONO}
+          >
+            !
+          </text>
+        </g>
+      )}
+
+      {isBlank ? (
         <text
           x={cx}
           y={tile.y + tile.height / 2 + 4}
           fontSize={11}
-          fill="#a1a1aa"
+          fontFamily={MONO}
+          fill={DIM}
           textAnchor="middle"
-          fontStyle="italic"
+          letterSpacing="1"
         >
-          spare
+          BLANK
         </text>
       ) : (
         <>
-          <rect
-            x={cx - 27}
-            y={tile.y + 24}
-            width={54}
-            height={17}
-            rx={8.5}
-            fill={st.accent}
-          />
-          <text
-            x={cx}
-            y={tile.y + 36}
-            fontSize={10}
-            fontWeight="bold"
-            fill="#ffffff"
-            textAnchor="middle"
-            letterSpacing="0.5"
-          >
-            {st.caption}
-          </text>
+          {isMain ? (
+            <text
+              x={cx}
+              y={tile.y + 38}
+              fontSize={12}
+              fontWeight="bold"
+              fontFamily={MONO}
+              fill={GREEN}
+              textAnchor="middle"
+              letterSpacing="0.5"
+            >
+              MAIN
+            </text>
+          ) : (
+            <>
+              <rect
+                x={cx - 24}
+                y={tile.y + 25}
+                width={48}
+                height={17}
+                rx={8.5}
+                fill={accent}
+              />
+              <text
+                x={cx}
+                y={tile.y + 37}
+                fontSize={10}
+                fontWeight="bold"
+                fill={chipTextColor}
+                textAnchor="middle"
+                letterSpacing="0.5"
+                fontFamily={MONO}
+              >
+                {caption}
+              </text>
+            </>
+          )}
 
+          {/* Breaker glyph — a hint of physical hardware. */}
           <rect
-            x={cx - 8}
-            y={tile.y + 49}
-            width={16}
+            x={cx - 9}
+            y={tile.y + 50}
+            width={18}
             height={24}
             rx={3}
-            fill="#ffffff"
-            stroke={st.stroke}
-            strokeWidth={1.5}
+            fill="#0c0e10"
+            stroke={accent}
+            strokeWidth={1.4}
           />
           <line
             x1={cx - 4}
-            y1={tile.y + 55}
+            y1={tile.y + 57}
             x2={cx + 4}
-            y2={tile.y + 55}
-            stroke={st.stroke}
-            strokeWidth={1.5}
+            y2={tile.y + 57}
+            stroke={accent}
+            strokeWidth={1.6}
+            strokeLinecap="round"
           />
 
+          {/* Rating, large mono. */}
           {c.rating && (
             <text
               x={cx}
-              y={tile.y + 94}
-              fontSize={16}
+              y={tile.y + 96}
+              fontSize={18}
               fontWeight="bold"
-              fill="#18181b"
+              fontFamily={MONO}
+              fill={WHITE}
               textAnchor="middle"
             >
               {truncate(c.rating, 8)}
             </text>
           )}
 
+          {/* Purpose label, up to 2 small lines. */}
           {c.purposeLabel &&
-            wrapLabel(c.purposeLabel, 14, 2).map((line, i) => (
+            wrapLabel(c.purposeLabel, 15, 2).map((line, i) => (
               <text
                 key={i}
                 x={cx}
-                y={tile.y + 109 + i * 11}
+                y={tile.y + 112 + i * 11}
                 fontSize={9}
-                fill="#3f3f46"
+                fontFamily={SANS}
+                fill={isMain ? GREEN : MUTED}
                 textAnchor="middle"
               >
                 {line}
               </text>
             ))}
-        </>
-      )}
-
-      {c.confidence < 0.5 && (
-        <>
-          <circle cx={tile.x + tile.width - 12} cy={tile.y + 13} r={7} fill="#fbbf24" />
-          <text
-            x={tile.x + tile.width - 12}
-            y={tile.y + 17}
-            fontSize={10}
-            fill="#78350f"
-            textAnchor="middle"
-            fontWeight="bold"
-          >
-            ?
-          </text>
         </>
       )}
 
@@ -450,6 +524,7 @@ function Tile({
             fill="#ffffff"
             textAnchor="middle"
             fontWeight="bold"
+            fontFamily={MONO}
           >
             {c.noteIds.length}
           </text>

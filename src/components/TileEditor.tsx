@@ -6,8 +6,20 @@ import { transcribeBlob, speak } from "../lib/gradium";
 import { cleanNote } from "../lib/llm";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
+import { Chip as TechChip } from "./ui/Chip";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { useToast } from "./ui/Toast";
+
+const REVIEW_CONFIDENCE = 0.7;
+
+const TYPE_CAPTIONS: Record<ComponentType, string> = {
+  main_switch: "MAIN",
+  RCD: "RCD",
+  RCBO: "RCBO",
+  MCB: "MCB",
+  blank: "BLANK",
+  other: "AUX",
+};
 
 const TYPES: { value: ComponentType; label: string }[] = [
   { value: "main_switch", label: "Main switch" },
@@ -85,8 +97,20 @@ export function TileEditor({
   }
 
   return (
-    <Sheet open onClose={onClose} title={`Breaker ${tile.order}`}>
+    <Sheet open onClose={onClose} title={`Breaker #${tile.order}`}>
       <div className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <TechChip
+            tone={tile.type === "main_switch" ? "safe" : tile.type === "blank" ? "default" : "primary"}
+          >
+            {TYPE_CAPTIONS[tile.type] ?? "AUX"}
+          </TechChip>
+          {tile.rating && <TechChip tone="gold">{tile.rating}</TechChip>}
+          {tile.type !== "blank" && tile.confidence < REVIEW_CONFIDENCE && (
+            <TechChip tone="review">Needs review</TechChip>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <label className="col-span-2 flex flex-col gap-2">
             <span className="text-body-md font-bold text-[var(--color-on-surface)]">Type</span>
@@ -112,7 +136,7 @@ export function TileEditor({
               onChange={(e) => setRating(e.target.value)}
               onBlur={() => void saveMeta({ rating: rating.trim() || null })}
               placeholder="e.g. 32A"
-              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
+              className="rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 font-[family-name:var(--font-jetbrains)] text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
             />
           </label>
 

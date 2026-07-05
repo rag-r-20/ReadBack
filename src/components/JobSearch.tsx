@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { Material, Note, PanelComponent } from "../lib/types";
 import { assembleJobData } from "../lib/db";
 import { askJob } from "../lib/llm";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { Chip } from "./ui/Chip";
 import { Spinner } from "./ui/Spinner";
 import { useToast } from "./ui/Toast";
 
@@ -15,6 +17,17 @@ interface Props {
   onHighlight: (ids: Set<string> | null) => void;
   onSelectTile: (id: string) => void;
 }
+
+interface Exchange {
+  question: string;
+  answer: string;
+}
+
+const SUGGESTIONS = [
+  "What rating is the kitchen ring?",
+  "Show actions required",
+  "List every RCBO on the board",
+];
 
 export function JobSearch({
   jobId,
@@ -28,7 +41,8 @@ export function JobSearch({
   const [query, setQuery] = useState("");
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [exchanges, setExchanges] = useState<Exchange[]>([]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const q = query.trim().toLowerCase();
 
@@ -70,9 +84,8 @@ export function JobSearch({
 
   async function handleAsk() {
     const question_ = question.trim();
-    if (!question_) return;
+    if (!question_ || asking) return;
     setAsking(true);
-    setAnswer(null);
     const data = await assembleJobData(jobId);
     if (!data) {
       setAsking(false);
@@ -85,28 +98,43 @@ export function JobSearch({
       toast.error(res.error);
       return;
     }
-    setAnswer(res.value);
+    setExchanges((prev) => [...prev, { question: question_, answer: res.value }]);
+    setQuestion("");
+  }
+
+  function useSuggestion(s: string) {
+    setQuestion(s);
+    inputRef.current?.focus();
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <label className="mb-2 block text-body-md font-bold text-[var(--color-on-surface)]">
-          Search this job
+    <Card className="ai-glow ai-hud flex flex-col p-4 sm:p-5">
+      <header className="mb-3 flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+          <SparkIcon />
+        </span>
+        <h2 className="text-headline-md text-[var(--color-on-surface)]">Ask AI</h2>
+      </header>
+
+      {/* Live search / job context */}
+      <div className="mb-4">
+        <label className="mb-1.5 block text-label-caps text-[var(--color-on-surface-variant)]">
+          Search this job context
         </label>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g. kitchen ring"
-          className="w-full rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
+          className="min-h-[48px] w-full rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-md text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
         />
-
         {results && (
-          <div className="mt-3 flex flex-col gap-3">
+          <div className="mt-2 flex flex-col gap-2">
             {results.tiles.length === 0 &&
             results.noteHits.length === 0 &&
             results.matHits.length === 0 ? (
-              <p className="text-body-md text-[var(--color-outline)]">No matches.</p>
+              <p className="text-body-md text-[var(--color-outline)]">
+                No matches.
+              </p>
             ) : (
               <>
                 {results.tiles.map((t) => (
@@ -141,28 +169,78 @@ export function JobSearch({
         )}
       </div>
 
-      <div className="border-t border-[var(--color-slate-light)] pt-5">
-        <label className="mb-2 block text-body-md font-bold text-[var(--color-on-surface)]">
-          Ask your job
-        </label>
-        <div className="flex gap-2">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAsk()}
-            placeholder="e.g. what rating is the kitchen ring?"
-            className="min-w-0 flex-1 rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-lg text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] min-h-[48px]"
-          />
-          <Button onClick={handleAsk} disabled={asking}>
-            {asking ? <Spinner size={18} /> : "Ask"}
-          </Button>
-        </div>
+      {/* Chat thread */}
+      <div className="flex flex-col gap-3">
+        <Bubble role="assistant">
+          I’ve processed the voice notes and extracted materials. What else do you
+          need to know about this job?
+        </Bubble>
 
-        {answer && (
-          <Card className="mt-3 whitespace-pre-wrap p-4 text-body-md text-[var(--color-on-surface)] ai-glow ai-hud">
-            {answer}
-          </Card>
+        {exchanges.map((ex, i) => (
+          <div key={i} className="flex flex-col gap-3">
+            <Bubble role="user">{ex.question}</Bubble>
+            <Bubble role="assistant">{ex.answer}</Bubble>
+          </div>
+        ))}
+
+        {asking && (
+          <Bubble role="assistant">
+            <span className="inline-flex items-center gap-2 text-[var(--color-on-surface-variant)]">
+              <Spinner size={16} /> Thinking…
+            </span>
+          </Bubble>
         )}
+      </div>
+
+      {/* Suggestion chips */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            onClick={() => useSuggestion(s)}
+            className="rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-3 py-2 text-technical-sm text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/20"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Input row */}
+      <div className="mt-4 flex gap-2">
+        <input
+          ref={inputRef}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+          placeholder="e.g. what rating is the kitchen ring?"
+          className="min-h-[48px] min-w-0 flex-1 rounded border border-[var(--color-outline-variant)] bg-[var(--color-surface-container-lowest)] px-3 py-2 text-body-md text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+        />
+        <Button onClick={handleAsk} disabled={asking || !question.trim()}>
+          {asking ? <Spinner size={18} /> : "Ask"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function Bubble({
+  role,
+  children,
+}: {
+  role: "assistant" | "user";
+  children: ReactNode;
+}) {
+  const isUser = role === "user";
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-3.5 py-2.5 text-body-md ${
+          isUser
+            ? "bg-[var(--color-primary-container)] text-white"
+            : "border border-[var(--color-primary)]/25 bg-[var(--color-surface-container-lowest)] text-[var(--color-on-surface)]"
+        }`}
+      >
+        {children}
       </div>
     </div>
   );
@@ -183,17 +261,33 @@ function ResultRow({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="flex w-full items-start gap-3 rounded border border-[var(--color-slate-light)] bg-[var(--color-surface)] p-3 text-left enabled:hover:border-[var(--color-primary)] disabled:cursor-default"
+      className="flex w-full items-start gap-2 rounded border border-[var(--color-slate-light)] bg-[var(--color-surface-container-lowest)] p-2.5 text-left enabled:hover:border-[var(--color-primary)] disabled:cursor-default"
     >
-      <span className="mt-1 rounded-full bg-[var(--color-surface-container)] px-3 py-1 text-label-caps text-[var(--color-on-surface-variant)]">
+      <Chip tone="default" className="mt-0.5">
         {kind}
-      </span>
+      </Chip>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body-lg font-bold text-[var(--color-on-surface)]">{title}</span>
+        <span className="block truncate text-body-md font-bold text-[var(--color-on-surface)]">
+          {title}
+        </span>
         {subtitle && (
-          <span className="block truncate text-body-md text-[var(--color-on-surface-variant)]">{subtitle}</span>
+          <span className="block truncate text-body-md text-[var(--color-on-surface-variant)]">
+            {subtitle}
+          </span>
         )}
       </span>
     </button>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3z"
+        fill="currentColor"
+      />
+      <path d="M19 15l.9 2.4L22.3 18l-2.4.9L19 21l-.9-2.1-2.4-.9 2.4-.6L19 15z" fill="currentColor" />
+    </svg>
   );
 }

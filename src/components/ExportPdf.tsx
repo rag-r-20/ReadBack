@@ -1,0 +1,145 @@
+import type { Job, Panel, PanelComponent } from "../lib/types";
+
+interface ExportArgs {
+  job: Pick<Job, "title" | "address"> | null;
+  panel: Pick<Panel, "label"> | null;
+  components: PanelComponent[];
+  /** Total notes captured for the job (shown in the summary header). */
+  notesCount?: number;
+}
+
+const REVIEW_CONFIDENCE = 0.7;
+
+const TYPE_LABELS: Record<PanelComponent["type"], string> = {
+  main_switch: "Main switch",
+  RCD: "RCD",
+  RCBO: "RCBO",
+  MCB: "MCB",
+  blank: "Blank / spare",
+  other: "Other",
+};
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Print-friendly board summary. Opens a standalone window with a clean,
+ * light-on-white schedule and triggers the browser print dialog (which the
+ * user can "Save as PDF"). Chosen over injecting a print stylesheet into the
+ * app because a dedicated window reliably excludes nav/sidebar chrome.
+ */
+export function exportBoardPdf({ job, panel, components, notesCount = 0 }: ExportArgs) {
+  const win = window.open("", "_blank", "width=900,height=1200");
+  if (!win) {
+    // Popup blocked — fall back to printing the current page.
+    window.print();
+    return;
+  }
+
+  const title = panel?.label || job?.title || "Board";
+  const address = job?.address ?? "";
+  const live = components.filter((c) => c.type !== "blank");
+  const review = live.filter((c) => c.confidence < REVIEW_CONFIDENCE).length;
+  const avg =
+    live.length > 0
+      ? Math.round(
+          (live.reduce((s, c) => s + (c.confidence ?? 0), 0) / live.length) * 100,
+        )
+      : 100;
+  const generated = new Date().toLocaleString();
+
+  const rows = components
+    .map((c) => {
+      const flag =
+        c.type !== "blank" && c.confidence < REVIEW_CONFIDENCE
+          ? '<span class="flag">REVIEW</span>'
+          : "";
+      return `<tr>
+        <td class="mono num">#${c.order}</td>
+        <td>${esc(TYPE_LABELS[c.type] ?? c.type)}</td>
+        <td class="mono">${esc(c.rating ?? "—")}</td>
+        <td>${esc(c.purposeLabel ?? "—")} ${flag}</td>
+      </tr>`;
+    })
+    .join("\n");
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${esc(title)} — Board schedule</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    color: #18181b; margin: 32px; line-height: 1.4;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  header { border-bottom: 3px solid #1d4ed8; padding-bottom: 16px; margin-bottom: 20px; }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 800; }
+  .addr { color: #52525b; margin: 0; font-size: 14px; }
+  .code { color: #52525b; font-size: 12px; letter-spacing: .05em; margin-top: 6px; }
+  .stats { display: flex; gap: 24px; margin: 18px 0 24px; flex-wrap: wrap; }
+  .stat { border: 1px solid #e4e4e7; border-radius: 6px; padding: 10px 14px; min-width: 120px; }
+  .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #71717a; }
+  .stat .v { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+       color: #52525b; border-bottom: 2px solid #d4d4d8; padding: 8px 6px; }
+  td { padding: 8px 6px; border-bottom: 1px solid #ececee; font-size: 14px; vertical-align: top; }
+  td.num { color: #71717a; width: 52px; }
+  .flag { display: inline-block; background: #fef3c7; color: #92400e; font-size: 10px;
+          font-weight: 700; padding: 1px 6px; border-radius: 4px; letter-spacing: .04em; }
+  footer { margin-top: 28px; color: #a1a1aa; font-size: 11px; border-top: 1px solid #e4e4e7; padding-top: 12px;
+           display: flex; justify-content: space-between; }
+  @media print { body { margin: 12mm; } .noprint { display: none; } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>${esc(title)}</h1>
+    ${address ? `<p class="addr">${esc(address)}</p>` : ""}
+    <div class="code mono">MAIN_DISTRIBUTION_BOARD_01 · SYS_TYPE: TN-C-S</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Circuits</div><div class="v mono">${live.length}</div></div>
+    <div class="stat"><div class="k">Needs review</div><div class="v mono">${review}</div></div>
+    <div class="stat"><div class="k">AI confidence</div><div class="v mono">${avg}%</div></div>
+    <div class="stat"><div class="k">Notes</div><div class="v mono">${notesCount}</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Pos</th><th>Type</th><th>Rating</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      ${rows || '<tr><td colspan="4">No circuits recorded.</td></tr>'}
+    </tbody>
+  </table>
+
+  <footer>
+    <span>Generated by ReadBack · MODEL: OMEGA-7_VISION</span>
+    <span>${esc(generated)}</span>
+  </footer>
+
+  <script>
+    window.addEventListener("load", function () {
+      setTimeout(function () { window.print(); }, 200);
+    });
+  </script>
+</body>
+</html>`;
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+}

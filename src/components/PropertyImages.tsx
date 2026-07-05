@@ -82,10 +82,10 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
     <section className="mb-4">
       <div className="mb-2 flex min-h-[48px] items-center justify-between">
         <h3 className="text-label-caps text-[var(--color-on-surface-variant)]">
-          Property images ({photos.length})
+          Property Images ({photos.length})
         </h3>
-        <label className="flex cursor-pointer min-h-[48px] items-center text-body-md font-bold text-[var(--color-primary)] hover:text-[var(--color-inverse-primary)]">
-          {uploading ? "Uploading…" : "+ Add image"}
+        <label className="flex min-h-[48px] cursor-pointer items-center gap-1 text-body-md font-bold text-[var(--color-primary)] hover:text-[var(--color-inverse-primary)]">
+          {uploading ? "Uploading…" : "+ Add Image"}
           <input
             type="file"
             accept="image/*"
@@ -99,13 +99,13 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
           />
         </label>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-wrap gap-2">
         {photos.map((photo) => {
           const url = urls.get(photo.id);
           return (
             <div
               key={photo.id}
-              className="h-20 w-20 shrink-0 overflow-hidden rounded border border-[var(--color-slate-light)] bg-black"
+              className="h-16 w-16 shrink-0 overflow-hidden rounded border border-[var(--color-slate-light)] bg-[var(--color-surface-container-lowest)]"
             >
               {url ? (
                 <img
@@ -119,6 +119,27 @@ export function PropertyImages({ jobId, photos, onChanged }: Props) {
             </div>
           );
         })}
+        <label className="flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded border border-dashed border-[var(--color-outline-variant)] text-[var(--color-on-surface-variant)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 5v14M5 12h14"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleUpload(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
       </div>
     </section>
   );
